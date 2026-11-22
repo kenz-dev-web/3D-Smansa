@@ -1,0 +1,4328 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SMA Negeri 1 Klaten — 3D Interactive Architectural Visualization</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet" />
+
+  <!-- Three.js r165 ES Modules via Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-glass: rgba(10, 16, 22, 0.72);
+      --bg-glass-hover: rgba(18, 29, 39, 0.86);
+      --border-glass: rgba(255, 255, 255, 0.12);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.35);
+      --amber: #f59e0b;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #070b10;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--text-main);
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Loading Screen */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 35%, #11241c 0%, #070b10 72%);
+      transition: opacity 0.65s ease, visibility 0.65s ease;
+    }
+    #loading-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .loader-card {
+      width: min(90vw, 420px);
+      padding: 32px 28px;
+      border-radius: 22px;
+      background: rgba(12, 18, 26, 0.8);
+      border: 1px solid rgba(16, 185, 129, 0.28);
+      backdrop-filter: blur(18px);
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    }
+    #loader-logo {
+      width: 78px;
+      height: 92px;
+      margin: 0 auto 14px;
+      display: block;
+      filter: drop-shadow(0 6px 16px rgba(16, 185, 129, 0.35));
+    }
+    .loader-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      background: linear-gradient(135deg, #ffffff 10%, #6ee7b7 60%, #fbbf24 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .loader-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    #progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--emerald), var(--amber));
+      transition: width 0.25s ease;
+    }
+    #progress-text {
+      font-size: 0.75rem;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+
+    /* Top-Left Brand HUD */
+    #brand-hud {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px 10px 12px;
+      border-radius: 16px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      transition: transform 0.35s ease, opacity 0.35s ease;
+    }
+    #hud-logo {
+      width: 38px;
+      height: 44px;
+      flex-shrink: 0;
+    }
+    .brand-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .brand-sub {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #34d399;
+      letter-spacing: 0.04em;
+    }
+    .fps-pill {
+      margin-left: 8px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #6ee7b7;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Top-Right Toggle & Audio Bar */
+    #top-actions {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 30;
+      display: flex;
+      gap: 8px;
+    }
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 13px;
+      border-radius: 12px;
+      border: 1px solid var(--border-glass);
+      background: var(--bg-glass);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transition: all 0.2s ease;
+    }
+    .icon-btn:hover {
+      background: var(--bg-glass-hover);
+      border-color: rgba(16, 185, 129, 0.45);
+    }
+    .icon-btn.active {
+      background: rgba(16, 185, 129, 0.22);
+      border-color: var(--emerald);
+      color: #6ee7b7;
+    }
+
+    /* Control Panel */
+    #control-panel {
+      position: fixed;
+      top: 66px;
+      right: 16px;
+      z-index: 25;
+      width: min(312px, calc(100vw - 32px));
+      max-height: calc(100vh - 106px);
+      overflow-y: auto;
+      padding: 14px;
+      border-radius: 18px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+    }
+    #control-panel::-webkit-scrollbar {
+      width: 5px;
+    }
+    #control-panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 99px;
+    }
+    #control-panel.collapsed {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .panel-section {
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .panel-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-value {
+      color: #fbbf24;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .btn-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .ctrl-btn {
+      padding: 8px 6px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+      font-family: inherit;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .ctrl-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+    .ctrl-btn.active {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.34), rgba(5, 150, 105, 0.24));
+      border-color: var(--emerald);
+      color: #ffffff;
+      box-shadow: 0 0 14px var(--emerald-glow);
+    }
+
+    .preset-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .preset-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      font-family: inherit;
+      font-size: 0.76rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+    .preset-btn:hover {
+      background: rgba(16, 185, 129, 0.16);
+      border-color: rgba(16, 185, 129, 0.42);
+      transform: translateX(2px);
+    }
+    .preset-btn .num {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--amber);
+      background: rgba(245, 158, 11, 0.14);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    /* Sun Time Range Slider */
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #38bdf8, #fde047, #f97316);
+      outline: none;
+      -webkit-appearance: none;
+      margin-top: 4px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid var(--emerald);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Walk Mode Hint Banner */
+    #walk-hint {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      padding: 9px 16px;
+      border-radius: 12px;
+      background: var(--bg-glass);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      backdrop-filter: blur(12px);
+      font-size: 0.76rem;
+      color: #e2e8f0;
+      display: none;
+      white-space: nowrap;
+    }
+    #walk-hint strong {
+      color: #6ee7b7;
+    }
+
+    /* Touch Virtual Joystick for Walk Mode */
+    #joystick-zone {
+      position: fixed;
+      bottom: 28px;
+      left: 24px;
+      z-index: 28;
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      background: rgba(15, 23, 32, 0.55);
+      border: 2px solid rgba(16, 185, 129, 0.45);
+      backdrop-filter: blur(10px);
+      display: none;
+      touch-action: none;
+    }
+    #joystick-knob {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 44px;
+      height: 44px;
+      margin-left: -22px;
+      margin-top: -22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--emerald), #059669);
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
+      pointer-events: none;
+    }
+
+    /* Watermark */
+    #watermark {
+      position: fixed;
+      bottom: 12px;
+      right: 16px;
+      z-index: 15;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: rgba(255, 255, 255, 0.55);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+      pointer-events: none;
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      z-index: 40;
+      padding: 8px 16px;
+      border-radius: 10px;
+      background: rgba(10, 18, 26, 0.86);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      color: #f8fafc;
+      font-size: 0.78rem;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 640px) {
+      #brand-hud {
+        top: 10px;
+        left: 10px;
+        padding: 8px 10px;
+        gap: 8px;
+      }
+      .brand-title { font-size: 0.78rem; }
+      .brand-sub { font-size: 0.62rem; }
+      #top-actions { top: 10px; right: 10px; }
+      #control-panel {
+        top: 58px;
+        right: 10px;
+        width: min(290px, calc(100vw - 20px));
+        max-height: calc(100vh - 90px);
+      }
+      #walk-hint { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="loader-card">
+      <canvas id="loader-logo" width="156" height="184"></canvas>
+      <div class="loader-title">SMA NEGERI 1 KLATEN</div>
+      <div class="loader-sub">3D Interactive Campus Visualization • Padmawijaya</div>
+      <div class="progress-track"><div id="progress-bar"></div></div>
+      <div id="progress-text">Menyiapkan Engine WebGL &amp; PBR...</div>
+    </div>
+  </div>
+
+  <!-- 3D Viewport -->
+  <div id="canvas-container"></div>
+
+  <!-- Top-Left Brand HUD -->
+  <div id="brand-hud">
+    <canvas id="hud-logo" width="96" height="112"></canvas>
+    <div>
+      <div class="brand-title">SMA NEGERI 1 KLATEN</div>
+      <div class="brand-sub">SEKOLAH INSPIRASI • 3D CAMPUS</div>
+    </div>
+    <div class="fps-pill" id="fps-display">60 FPS</div>
+  </div>
+
+  <!-- Top-Right Action Buttons -->
+  <div id="top-actions">
+    <button class="icon-btn" id="btn-audio" title="Suara Lingkungan Prosedural">Audio: Off</button>
+    <button class="icon-btn active" id="btn-toggle-ui" title="Sembunyikan / Tampilkan Panel">Panel</button>
+  </div>
+
+  <!-- Collapsible Glassmorphism Control Panel -->
+  <aside id="control-panel">
+    <div class="panel-section">
+      <div class="section-label">Mode Kamera</div>
+      <div class="btn-grid-3">
+        <button class="ctrl-btn active" data-cam="drone">Drone</button>
+        <button class="ctrl-btn" data-cam="walk">Walk 1.7m</button>
+        <button class="ctrl-btn" data-cam="tour">Auto-Tour</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Cuaca &amp; Pencahayaan</div>
+      <div class="btn-grid-3">
+        <button class="ctrl-btn active" data-weather="morning">Pagi Cerah</button>
+        <button class="ctrl-btn" data-weather="sunset">Sore Emas</button>
+        <button class="ctrl-btn" data-weather="rain">Hujan</button>
+      </div>
+      <div class="section-label" style="margin-top: 10px; margin-bottom: 2px;">
+        <span>Posisi Matahari</span>
+        <span class="section-value" id="sun-time-label">07:45 WIB</span>
+      </div>
+      <input type="range" id="sun-slider" min="6.5" max="17.5" step="0.05" value="7.75" />
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Teleport Kamera</div>
+      <div class="preset-list">
+        <button class="preset-btn" data-preset="drone"><span>Drone Overview</span><span class="num">01</span></button>
+        <button class="preset-btn" data-preset="topdown"><span>Tampak Satelit (Denah Atas)</span><span class="num">02</span></button>
+        <button class="preset-btn" data-preset="gate"><span>Gerbang &amp; Kolam Patung</span><span class="num">03</span></button>
+        <button class="preset-btn" data-preset="acp"><span>Fasad Modern ACP</span><span class="num">04</span></button>
+        <button class="preset-btn" data-preset="main"><span>Gedung Utama &amp; Bendera</span><span class="num">05</span></button>
+        <button class="preset-btn" data-preset="uksbk"><span>UKS, BK &amp; Koperasi (U Kiri)</span><span class="num">06</span></button>
+        <button class="preset-btn" data-preset="masjid"><span>Masjid Sekolah (Atas Kiri)</span><span class="num">07</span></button>
+        <button class="preset-btn" data-preset="corridor"><span>Perpustakaan &amp; Pergola</span><span class="num">08</span></button>
+        <button class="preset-btn" data-preset="tennis"><span>Lapangan Tenis (Kiri Depan)</span><span class="num">09</span></button>
+        <button class="preset-btn" data-preset="basket"><span>Lapangan Basket (Kanan Depan)</span><span class="num">10</span></button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Color Grading Sinematik</div>
+      <div class="btn-grid-3">
+        <button class="ctrl-btn active" data-grade="cine">Cinematic</button>
+        <button class="ctrl-btn" data-grade="vintage">Film Hangat</button>
+        <button class="ctrl-btn" data-grade="natural">Natural</button>
+      </div>
+      <div class="btn-grid-3" style="margin-top:8px;grid-template-columns:1fr;">
+        <button class="ctrl-btn" id="btn-letterbox">Bar Sinema 2.39:1</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Kualitas Grafik</div>
+      <div class="btn-grid-3">
+        <button class="ctrl-btn" data-quality="medium">Medium</button>
+        <button class="ctrl-btn active" data-quality="high">High</button>
+        <button class="ctrl-btn" data-quality="ultra">Ultra</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Walk Controls Hint & Mobile Joystick -->
+  <div id="walk-hint"><strong>WASD / Panah</strong> Jalan • <strong>Shift</strong> Lari • <strong>Drag Mouse</strong> Menoleh</div>
+  <div id="joystick-zone"><div id="joystick-knob"></div></div>
+  <div id="toast"></div>
+  <div id="watermark">by KENZ</div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { Sky } from 'three/addons/objects/Sky.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+    // =========================================================================
+    // 1. UI HELPERS & PROGRESS UPDATER
+    // =========================================================================
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const loadingScreen = document.getElementById('loading-screen');
+    const toastEl = document.getElementById('toast');
+    let toastTimer = null;
+
+    function setProgress(pct, msg) {
+      progressBar.style.width = `${pct}%`;
+      progressText.textContent = msg;
+    }
+
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+    }
+
+    // =========================================================================
+    // 2. PROCEDURAL PBR TEXTURE FACTORY (ZERO EXTERNAL URLs)
+    // =========================================================================
+    const TextureFactory = {
+      configure(tex, repeatX = 1, repeatY = 1, isColor = true) {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(repeatX, repeatY);
+        tex.anisotropy = 8;
+        tex.colorSpace = isColor ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        tex.needsUpdate = true;
+        return tex;
+      },
+
+      // Official SMA Negeri Satu Padmawijaya Klaten Shield Emblem
+      drawSmansaLogo(ctx, cx, cy, scale = 1) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+
+        function traceShield(s) {
+          ctx.beginPath();
+          ctx.moveTo(0, -108 * s);
+          ctx.quadraticCurveTo(32 * s, -84 * s, 72 * s, -84 * s);
+          ctx.lineTo(72 * s, 14 * s);
+          ctx.quadraticCurveTo(66 * s, 70 * s, 0, 108 * s);
+          ctx.quadraticCurveTo(-66 * s, 70 * s, -72 * s, 14 * s);
+          ctx.lineTo(-72 * s, -84 * s);
+          ctx.quadraticCurveTo(-32 * s, -84 * s, 0, -108 * s);
+          ctx.closePath();
+        }
+
+        // Royal Blue Outer Shield Border
+        traceShield(1.0);
+        ctx.fillStyle = '#0b22c4';
+        ctx.fill();
+
+        // White Spacer
+        traceShield(0.93);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        // Golden Yellow Inner Border
+        traceShield(0.89);
+        ctx.fillStyle = '#f5d000';
+        ctx.fill();
+
+        // Crisp White Shield Interior
+        traceShield(0.82);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        // Top Serif Typography: "S M A" / "NEGERI SATU"
+        ctx.fillStyle = '#0f172a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '700 18px "Playfair Display", Georgia, serif';
+        ctx.fillText('S M A', 0, -56);
+        ctx.font = '700 15px "Playfair Display", Georgia, serif';
+        ctx.fillText('NEGERI SATU', 0, -37);
+
+        // Red Jagged Gunungan / Flame Center Silhouette
+        ctx.beginPath();
+        ctx.moveTo(0, -26);
+        ctx.bezierCurveTo(18, -16, 36, -6, 38, 12);
+        ctx.lineTo(29, 10);
+        ctx.lineTo(36, 22);
+        ctx.lineTo(25, 21);
+        ctx.bezierCurveTo(33, 27, 34, 34, 28, 37);
+        for (let i = 4; i >= -4; i--) {
+          ctx.lineTo(i * 6.5, i % 2 === 0 ? 37 : 33);
+        }
+        ctx.bezierCurveTo(-34, 34, -33, 27, -25, 21);
+        ctx.lineTo(-36, 22);
+        ctx.lineTo(-29, 10);
+        ctx.lineTo(-38, 12);
+        ctx.bezierCurveTo(-36, -6, -18, -16, 0, -26);
+        ctx.closePath();
+        ctx.fillStyle = '#dc1414';
+        ctx.fill();
+
+        // Golden Yellow Symmetrical Emblem inside Red Flame
+        ctx.fillStyle = '#facc15';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(0, -14);
+        ctx.bezierCurveTo(14, -22, 22, -4, 15, 10);
+        ctx.bezierCurveTo(10, 14, 5, 13, 3, 18);
+        ctx.lineTo(8, 24);
+        ctx.lineTo(0, 30);
+        ctx.lineTo(-8, 24);
+        ctx.lineTo(-3, 18);
+        ctx.bezierCurveTo(-5, 13, -10, 14, -15, 10);
+        ctx.bezierCurveTo(-22, -4, -14, -22, 0, -14);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Two-Tier Green Padma (Lotus) Petals underneath Flame
+        ctx.fillStyle = '#0f8c2a';
+        const upperPetals = [-24, -14, 0, 14, 24];
+        upperPetals.forEach((px, idx) => {
+          ctx.beginPath();
+          ctx.ellipse(px, 46 + (idx === 2 ? 0 : 2), idx === 2 ? 10 : 6.5, 5, (px / 40) * 0.55, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        const lowerPetals = [-20, -10, 0, 10, 20];
+        lowerPetals.forEach((px, idx) => {
+          ctx.beginPath();
+          ctx.ellipse(px, 57 + (idx === 2 ? 1 : 0), idx === 2 ? 9 : 6, 5.5, -(px / 36) * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Bottom Curved Text: "PADMAWIJAYA" & "KLATEN"
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '800 11.5px Inter, sans-serif';
+        ctx.fillText('PADMAWIJAYA', 0, 74);
+        ctx.font = '900 14.5px Inter, sans-serif';
+        ctx.fillText('KLATEN', 0, 89);
+
+        ctx.restore();
+      },
+
+      // 3D Isometric Cube Paving Block (Maroon, Light Grey, Charcoal) + Bump & Roughness
+      createPaving3DTextures(repeatX = 12, repeatY = 20) {
+        const size = 512;
+        const cDiff = document.createElement('canvas');
+        const cBump = document.createElement('canvas');
+        const cRough = document.createElement('canvas');
+        cDiff.width = cBump.width = cRough.width = size;
+        cDiff.height = cBump.height = cRough.height = size;
+        const ctxD = cDiff.getContext('2d');
+        const ctxB = cBump.getContext('2d');
+        const ctxR = cRough.getContext('2d');
+
+        ctxD.fillStyle = '#333333';
+        ctxD.fillRect(0, 0, size, size);
+        ctxB.fillStyle = '#202020';
+        ctxB.fillRect(0, 0, size, size);
+        ctxR.fillStyle = '#e0e0e0';
+        ctxR.fillRect(0, 0, size, size);
+
+        const cols = 4;
+        const w = size / cols;
+        const h = w * 0.866;
+        const rows = Math.ceil(size / h) + 2;
+
+        function drawRhombus(ctx, pts, fill, stroke, lw) {
+          ctx.beginPath();
+          ctx.moveTo(pts[0][0], pts[0][1]);
+          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+          ctx.closePath();
+          ctx.fillStyle = fill;
+          ctx.fill();
+          if (stroke) {
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = lw;
+            ctx.stroke();
+          }
+        }
+
+        for (let r = -1; r < rows; r++) {
+          for (let c = -1; c <= cols + 1; c++) {
+            const cx = c * w + (r % 2 === 0 ? 0 : w / 2);
+            const cy = r * h;
+            const rRad = w / 2;
+            const dY = h / 2;
+
+            // Top face: Maroon (#7d2c2c)
+            const topPts = [[cx, cy - dY * 1.15], [cx + rRad, cy - dY * 0.57], [cx, cy], [cx - rRad, cy - dY * 0.57]];
+            // Left face: Light Grey (#dcdcdc)
+            const leftPts = [[cx - rRad, cy - dY * 0.57], [cx, cy], [cx, cy + dY * 1.15], [cx - rRad, cy + dY * 0.57]];
+            // Right face: Dark Charcoal (#3a3a3a)
+            const rightPts = [[cx, cy], [cx + rRad, cy - dY * 0.57], [cx + rRad, cy + dY * 0.57], [cx, cy + dY * 1.15]];
+
+            const jitter = ((r * 17 + c * 31) % 9) - 4;
+            drawRhombus(ctxD, topPts, `rgb(${128 + jitter}, ${46 + jitter}, ${48 + jitter})`, '#1f1d1d', 3.5);
+            drawRhombus(ctxD, leftPts, `rgb(${216 + jitter}, ${214 + jitter}, ${210 + jitter})`, '#1f1d1d', 3.5);
+            drawRhombus(ctxD, rightPts, `rgb(${62 + jitter}, ${62 + jitter}, ${66 + jitter})`, '#1f1d1d', 3.5);
+
+            drawRhombus(ctxB, topPts, '#e5e5e5', '#151515', 4.5);
+            drawRhombus(ctxB, leftPts, '#dadada', '#151515', 4.5);
+            drawRhombus(ctxB, rightPts, '#d0d0d0', '#151515', 4.5);
+
+            drawRhombus(ctxR, topPts, '#b8b8b8', '#ffffff', 4);
+            drawRhombus(ctxR, leftPts, '#c8c8c8', '#ffffff', 4);
+            drawRhombus(ctxR, rightPts, '#a8a8a8', '#ffffff', 4);
+          }
+        }
+
+        // Micro surface speckle
+        for (let i = 0; i < 3500; i++) {
+          const x = Math.random() * size;
+          const y = Math.random() * size;
+          ctxD.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+          ctxD.fillRect(x, y, 2, 2);
+        }
+
+        return {
+          map: this.configure(new THREE.CanvasTexture(cDiff), repeatX, repeatY, true),
+          bumpMap: this.configure(new THREE.CanvasTexture(cBump), repeatX, repeatY, false),
+          roughnessMap: this.configure(new THREE.CanvasTexture(cRough), repeatX, repeatY, false)
+        };
+      },
+
+      // Corrugated Clay Roof Tiles (Genteng Tanah Liat) + Bump
+      createClayRoofTextures(repeatX = 10, repeatY = 5) {
+        const size = 512;
+        const cD = document.createElement('canvas');
+        const cB = document.createElement('canvas');
+        cD.width = cB.width = size;
+        cD.height = cB.height = size;
+        const ctxD = cD.getContext('2d');
+        const ctxB = cB.getContext('2d');
+
+        const cols = 12;
+        const rows = 8;
+        const tw = size / cols;
+        const th = size / rows;
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const x = c * tw;
+            const y = r * th;
+            const v = ((r * 23 + c * 13) % 19) - 9;
+            const moss = ((r * 7 + c * 11) % 17 === 0) ? -22 : 0;
+
+            const gradD = ctxD.createLinearGradient(x, y, x + tw, y);
+            gradD.addColorStop(0.0, `rgb(${135 + v + moss}, ${54 + v}, ${28 + v})`);
+            gradD.addColorStop(0.35, `rgb(${194 + v + moss}, ${88 + v}, ${45 + v})`);
+            gradD.addColorStop(0.7, `rgb(${172 + v + moss}, ${73 + v}, ${36 + v})`);
+            gradD.addColorStop(1.0, `rgb(${112 + v + moss}, ${42 + v}, ${20 + v})`);
+            ctxD.fillStyle = gradD;
+            ctxD.fillRect(x, y, tw, th);
+
+            // Tile overlap shadow at bottom edge
+            const shad = ctxD.createLinearGradient(x, y + th - 12, x, y + th);
+            shad.addColorStop(0, 'rgba(0,0,0,0)');
+            shad.addColorStop(1, 'rgba(28,10,5,0.62)');
+            ctxD.fillStyle = shad;
+            ctxD.fillRect(x, y + th - 12, tw, 12);
+
+            const gradB = ctxB.createLinearGradient(x, y, x + tw, y);
+            gradB.addColorStop(0, '#444444');
+            gradB.addColorStop(0.4, '#f0f0f0');
+            gradB.addColorStop(1, '#303030');
+            ctxB.fillStyle = gradB;
+            ctxB.fillRect(x, y, tw, th);
+            ctxB.fillStyle = '#181818';
+            ctxB.fillRect(x, y + th - 4, tw, 4);
+          }
+        }
+
+        return {
+          map: this.configure(new THREE.CanvasTexture(cD), repeatX, repeatY, true),
+          bumpMap: this.configure(new THREE.CanvasTexture(cB), repeatX, repeatY, false)
+        };
+      },
+
+      // Modern White ACP Panel Grid
+      createACPTexture(repeatX = 4, repeatY = 2) {
+        const size = 512;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#e5e9ec';
+        ctx.fillRect(0, 0, size, size);
+
+        const cols = 4, rows = 4;
+        const pw = size / cols, ph = size / rows;
+        for (let r = 0; r < rows; r++) {
+          for (let col = 0; col < cols; col++) {
+            const shade = 228 + ((r + col) % 2) * 5;
+            ctx.fillStyle = `rgb(${shade}, ${shade + 2}, ${shade + 4})`;
+            ctx.fillRect(col * pw + 2, r * ph + 2, pw - 4, ph - 4);
+          }
+        }
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 3;
+        for (let i = 0; i <= cols; i++) {
+          ctx.beginPath(); ctx.moveTo(i * pw, 0); ctx.lineTo(i * pw, size); ctx.stroke();
+        }
+        for (let j = 0; j <= rows; j++) {
+          ctx.beginPath(); ctx.moveTo(0, j * ph); ctx.lineTo(size, j * ph); ctx.stroke();
+        }
+        return this.configure(new THREE.CanvasTexture(c), repeatX, repeatY, true);
+      },
+
+      // Glossy Green Corridor Ceramic Tile
+      createGlossyGreenTileTexture(repeatX = 12, repeatY = 3) {
+        const size = 512;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#337a50';
+        ctx.fillRect(0, 0, size, size);
+
+        const cells = 4;
+        const s = size / cells;
+        for (let r = 0; r < cells; r++) {
+          for (let col = 0; col < cells; col++) {
+            const d = ((r * 3 + col * 5) % 7) - 3;
+            ctx.fillStyle = `rgb(${55 + d}, ${136 + d}, ${88 + d})`;
+            ctx.fillRect(col * s + 2, r * s + 2, s - 4, s - 4);
+          }
+        }
+        ctx.strokeStyle = '#1f5234';
+        ctx.lineWidth = 3;
+        for (let i = 0; i <= cells; i++) {
+          ctx.beginPath(); ctx.moveTo(i * s, 0); ctx.lineTo(i * s, size); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i * s); ctx.lineTo(size, i * s); ctx.stroke();
+        }
+        return this.configure(new THREE.CanvasTexture(c), repeatX, repeatY, true);
+      },
+
+      // Natural Tropical Grass Texture (Multi-tone organic variation)
+      createGrassTexture(repeatX = 10, repeatY = 12) {
+        const size = 512;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#4e7e34';
+        ctx.fillRect(0, 0, size, size);
+
+        for (let i = 0; i < 420; i++) {
+          const x = Math.random() * size;
+          const y = Math.random() * size;
+          const rad = 16 + Math.random() * 48;
+          const g = ctx.createRadialGradient(x, y, 2, x, y, rad);
+          const pick = Math.random();
+          if (pick < 0.35) {
+            g.addColorStop(0, 'rgba(60, 102, 36, 0.28)');
+          } else if (pick < 0.8) {
+            g.addColorStop(0, 'rgba(105, 148, 56, 0.26)');
+          } else {
+            g.addColorStop(0, 'rgba(128, 112, 74, 0.16)');
+          }
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+        }
+
+        // Fine grass blades
+        for (let i = 0; i < 9000; i++) {
+          const x = Math.random() * size;
+          const y = Math.random() * size;
+          ctx.fillStyle = Math.random() > 0.5 ? 'rgba(140,185,78,0.22)' : 'rgba(38,68,22,0.24)';
+          ctx.fillRect(x, y, 1.5, 4);
+        }
+        return this.configure(new THREE.CanvasTexture(c), repeatX, repeatY, true);
+      },
+
+      // Rubble Natural Stone Foundation Wall Texture
+      createStoneWallTextures(repeatX = 10, repeatY = 1) {
+        const size = 512;
+        const cD = document.createElement('canvas');
+        const cB = document.createElement('canvas');
+        cD.width = cB.width = size;
+        cD.height = cB.height = size;
+        const ctxD = cD.getContext('2d');
+        const ctxB = cB.getContext('2d');
+
+        ctxD.fillStyle = '#8b857b';
+        ctxD.fillRect(0, 0, size, size);
+        ctxB.fillStyle = '#252525';
+        ctxB.fillRect(0, 0, size, size);
+
+        const rows = 5, cols = 6;
+        const cw = size / cols, ch = size / rows;
+        const palette = ['#7b7263', '#968773', '#66635d', '#a2927c', '#746757', '#867f75'];
+
+        for (let r = 0; r < rows; r++) {
+          for (let col = 0; col < cols; col++) {
+            const cx = col * cw + cw * 0.5 + (r % 2 ? 12 : -6);
+            const cy = r * ch + ch * 0.5;
+            const pts = [];
+            const verts = 6;
+            for (let v = 0; v < verts; v++) {
+              const ang = (v / verts) * Math.PI * 2 + 0.2;
+              const rx = cw * (0.42 + ((r * 7 + col * 3 + v * 5) % 10) * 0.012);
+              const ry = ch * (0.40 + ((r * 5 + col * 11 + v * 3) % 10) * 0.012);
+              pts.push([cx + Math.cos(ang) * rx, cy + Math.sin(ang) * ry]);
+            }
+            ctxD.beginPath();
+            ctxB.beginPath();
+            pts.forEach((p, idx) => {
+              if (idx === 0) { ctxD.moveTo(p[0], p[1]); ctxB.moveTo(p[0], p[1]); }
+              else { ctxD.lineTo(p[0], p[1]); ctxB.lineTo(p[0], p[1]); }
+            });
+            ctxD.closePath(); ctxB.closePath();
+            ctxD.fillStyle = palette[(r * 5 + col * 3) % palette.length];
+            ctxD.fill();
+            ctxD.strokeStyle = '#d4cec4';
+            ctxD.lineWidth = 6;
+            ctxD.stroke();
+
+            ctxB.fillStyle = '#dcdcdc';
+            ctxB.fill();
+            ctxB.strokeStyle = '#1a1a1a';
+            ctxB.lineWidth = 7;
+            ctxB.stroke();
+          }
+        }
+        return {
+          map: this.configure(new THREE.CanvasTexture(cD), repeatX, repeatY, true),
+          bumpMap: this.configure(new THREE.CanvasTexture(cB), repeatX, repeatY, false)
+        };
+      },
+
+      // Concrete Driveway / Plaster Micro-noise
+      createConcreteTexture(repeatX = 8, repeatY = 8, baseHex = '#c5c7c4') {
+        const size = 512;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = baseHex;
+        ctx.fillRect(0, 0, size, size);
+
+        for (let i = 0; i < 4500; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+          ctx.fillRect(Math.random() * size, Math.random() * size, 3, 3);
+        }
+        ctx.strokeStyle = 'rgba(60,65,70,0.22)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, size - 2, size - 2);
+        return this.configure(new THREE.CanvasTexture(c), repeatX, repeatY, true);
+      },
+
+      // Lobby Polished Granite with Floral Center Mosaic
+      createLobbyMosaicTexture() {
+        const size = 512;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ecebe6';
+        ctx.fillRect(0, 0, size, size);
+
+        // Dark charcoal border frame
+        ctx.strokeStyle = '#26292d';
+        ctx.lineWidth = 36;
+        ctx.strokeRect(24, 24, size - 48, size - 48);
+
+        // Center circular medallion
+        const cx = size / 2, cy = size / 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 130, 0, Math.PI * 2);
+        ctx.fillStyle = '#f5f3ee';
+        ctx.fill();
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#2d3748';
+        ctx.stroke();
+
+        // 8-petal SMANSA mosaic flower
+        for (let i = 0; i < 8; i++) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate((i * Math.PI) / 4);
+          ctx.beginPath();
+          ctx.ellipse(0, -68, 22, 46, 0, 0, Math.PI * 2);
+          ctx.fillStyle = i % 2 === 0 ? '#d9531e' : '#3a7d5c';
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.beginPath();
+        ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+        ctx.fillStyle = '#eab308';
+        ctx.fill();
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        return tex;
+      },
+
+      // Front-Left Outdoor Tennis Court (Emerald + Terracotta Apron + Standard Lines)
+      createTennisCourtTexture() {
+        const w = 1024, h = 512;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+
+        // Outer apron
+        ctx.fillStyle = '#b45334';
+        ctx.fillRect(0, 0, w, h);
+
+        // Inner playing surface (Emerald green)
+        const mx = 104, my = 68;
+        const cw = w - mx * 2, ch = h - my * 2;
+        ctx.fillStyle = '#2d6a4f';
+        ctx.fillRect(mx, my, cw, ch);
+
+        // Subtle weathering
+        for (let i = 0; i < 2400; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.04)';
+          ctx.fillRect(Math.random() * w, Math.random() * h, 4, 4);
+        }
+
+        // Crisp white court lines
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 6;
+        // Doubles outer boundary
+        ctx.strokeRect(mx, my, cw, ch);
+        // Singles sidelines
+        const alley = ch * 0.125;
+        ctx.beginPath();
+        ctx.moveTo(mx, my + alley); ctx.lineTo(mx + cw, my + alley);
+        ctx.moveTo(mx, my + ch - alley); ctx.lineTo(mx + cw, my + ch - alley);
+        // Net center line
+        ctx.moveTo(w / 2, my - 10); ctx.lineTo(w / 2, my + ch + 10);
+        // Service lines
+        const servOff = cw * 0.27;
+        ctx.moveTo(w / 2 - servOff, my + alley); ctx.lineTo(w / 2 - servOff, my + ch - alley);
+        ctx.moveTo(w / 2 + servOff, my + alley); ctx.lineTo(w / 2 + servOff, my + ch - alley);
+        // Center service line
+        ctx.moveTo(w / 2 - servOff, h / 2); ctx.lineTo(w / 2 + servOff, h / 2);
+        // Center baseline hash marks
+        ctx.moveTo(mx, h / 2); ctx.lineTo(mx + 14, h / 2);
+        ctx.moveTo(mx + cw - 14, h / 2); ctx.lineTo(mx + cw, h / 2);
+        ctx.stroke();
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        return tex;
+      },
+
+      // Front-Right Outdoor Basketball Court (Dark Green + Terracotta Keys)
+      createBasketballCourtTexture() {
+        const w = 1024, h = 512;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+
+        ctx.fillStyle = '#c26036';
+        ctx.fillRect(0, 0, w, h);
+
+        const mx = 74, my = 48;
+        const cw = w - mx * 2, ch = h - my * 2;
+        ctx.fillStyle = '#255c42';
+        ctx.fillRect(mx, my, cw, ch);
+
+        // Paint keys (Terracotta)
+        const keyW = cw * 0.19, keyH = ch * 0.34;
+        ctx.fillStyle = '#c85a32';
+        ctx.fillRect(mx, h / 2 - keyH / 2, keyW, keyH);
+        ctx.fillRect(mx + cw - keyW, h / 2 - keyH / 2, keyW, keyH);
+
+        // Center circle fill
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, 54, 0, Math.PI * 2);
+        ctx.fillStyle = '#c85a32';
+        ctx.fill();
+
+        // Subtle weathering
+        for (let i = 0; i < 2400; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.045)';
+          ctx.fillRect(Math.random() * w, Math.random() * h, 5, 5);
+        }
+
+        // White court markings
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(mx, my, cw, ch);
+        ctx.beginPath();
+        ctx.moveTo(w / 2, my); ctx.lineTo(w / 2, my + ch);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, 54, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Key outlines & free-throw arcs
+        ctx.strokeRect(mx, h / 2 - keyH / 2, keyW, keyH);
+        ctx.strokeRect(mx + cw - keyW, h / 2 - keyH / 2, keyW, keyH);
+        ctx.beginPath();
+        ctx.arc(mx + keyW, h / 2, keyH / 2, -Math.PI / 2, Math.PI / 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(mx + cw - keyW, h / 2, keyH / 2, Math.PI / 2, -Math.PI / 2);
+        ctx.stroke();
+
+        // 3-point arcs
+        ctx.beginPath();
+        ctx.arc(mx + 38, h / 2, ch * 0.41, -Math.PI * 0.44, Math.PI * 0.44);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(mx + cw - 38, h / 2, ch * 0.41, Math.PI * 0.56, Math.PI * 1.44);
+        ctx.stroke();
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        return tex;
+      },
+
+      // TRUNTUM Batik Mural Texture (Gedung N)
+      createTruntumMuralTexture() {
+        const w = 1024, h = 512;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+
+        // Deep charcoal-indigo batik background
+        ctx.fillStyle = '#1c1d24';
+        ctx.fillRect(0, 0, w, h);
+
+        // Golden Truntum star-flower batik pattern
+        for (let y = 32; y < h; y += 64) {
+          for (let x = 32; x < w; x += 64) {
+            const ox = x + ((Math.floor(y / 64) % 2) * 32);
+            ctx.save();
+            ctx.translate(ox, y);
+            ctx.fillStyle = '#d99a3c';
+            for (let p = 0; p < 8; p++) {
+              ctx.rotate(Math.PI / 4);
+              ctx.beginPath();
+              ctx.ellipse(0, -14, 4, 10, 0, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+
+        // Dynamic sweeping white ribbon banner
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.moveTo(90, 145);
+        ctx.quadraticCurveTo(450, 95, 860, 140);
+        ctx.lineTo(890, 325);
+        ctx.quadraticCurveTo(470, 290, 120, 345);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 10;
+        ctx.stroke();
+
+        // Bold "TRUNTUM" lettering
+        ctx.fillStyle = '#1e293b';
+        ctx.font = '900 122px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('TRUNTUM', w / 2, 238);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+      },
+
+      // SINDHU MLATHI Art Mural Texture (Inner West Courtyard)
+      createSindhuMlathiMuralTexture() {
+        const w = 1024, h = 512;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+
+        // Left decorative panel (warm cream & blue waves)
+        ctx.fillStyle = '#2563eb';
+        ctx.fillRect(0, 0, w, h);
+
+        // Stylized sunset mountain & wave circles
+        const grad = ctx.createLinearGradient(0, 0, w, h);
+        grad.addColorStop(0, '#1e3a8a');
+        grad.addColorStop(0.5, '#3b82f6');
+        grad.addColorStop(1, '#0d9488');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Warm golden sun & cream organic waves
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(270, 230, 145, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.moveTo(0, 340);
+        ctx.bezierCurveTo(220, 210, 420, 420, 620, 290);
+        ctx.bezierCurveTo(790, 180, 920, 360, 1024, 280);
+        ctx.lineTo(1024, 512);
+        ctx.lineTo(0, 512);
+        ctx.closePath();
+        ctx.fill();
+
+        // Jasmine (Mlathi) white blossoms
+        const blooms = [[690, 180], [790, 250], [870, 140], [630, 330], [740, 360]];
+        blooms.forEach(([bx, by]) => {
+          ctx.save();
+          ctx.translate(bx, by);
+          ctx.fillStyle = '#ffffff';
+          for (let p = 0; p < 5; p++) {
+            ctx.rotate((Math.PI * 2) / 5);
+            ctx.beginPath();
+            ctx.ellipse(0, -18, 10, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(0, 0, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 84px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('SINDHU', 750, 125);
+        ctx.font = '800 54px Inter, sans-serif';
+        ctx.fillStyle = '#fde047';
+        ctx.fillText('MLATHI', 750, 195);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+      },
+
+      // Generic High-Resolution Signage Generator
+      createSignageTexture(lines, opts = {}) {
+        const w = opts.width || 1024;
+        const h = opts.height || 256;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+
+        ctx.fillStyle = opts.bg || '#166534';
+        ctx.fillRect(0, 0, w, h);
+
+        if (opts.border) {
+          ctx.strokeStyle = opts.border;
+          ctx.lineWidth = opts.borderWidth || 10;
+          const b = (opts.borderWidth || 10) / 2;
+          ctx.strokeRect(b, b, w - b * 2, h - b * 2);
+        }
+
+        if (opts.withLogo) {
+          this.drawSmansaLogo(ctx, 108, h / 2, 0.72);
+        }
+        if (opts.withRedCross) {
+          const cx = 104, cy = h / 2;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(cx, cy, 56, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#dc2626';
+          ctx.lineWidth = 6;
+          ctx.stroke();
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(cx - 14, cy - 36, 28, 72);
+          ctx.fillRect(cx - 36, cy - 14, 72, 28);
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const textCenterX = (opts.withLogo || opts.withRedCross) ? w / 2 + 65 : w / 2;
+        lines.forEach(line => {
+          ctx.font = line.font || '800 64px Inter, sans-serif';
+          if (line.shadow) {
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            ctx.fillText(line.text, textCenterX + 4, line.y + 4);
+          }
+          ctx.fillStyle = line.color || '#ffffff';
+          ctx.fillText(line.text, textCenterX, line.y);
+        });
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        return tex;
+      },
+
+      // Modern ACP Facade Header Texture (Logo + 3-Line Typography)
+      createACPHeaderTexture() {
+        const w = 1536, h = 512;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+
+        // Subtle ACP white grid base
+        ctx.fillStyle = '#e7ebee';
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = 'rgba(100,116,139,0.42)';
+        ctx.lineWidth = 3;
+        for (let x = 0; x <= w; x += 192) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        }
+        for (let y = 0; y <= h; y += 170) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        }
+
+        // Official Padmawijaya Logo at Top-Left
+        this.drawSmansaLogo(ctx, 180, 215, 1.38);
+
+        // Line 1: Raised Orange "SMA NEGERI 1 KLATEN"
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font = '900 84px Inter, sans-serif';
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.fillText('SMA NEGERI 1 KLATEN', 344, 146);
+        ctx.fillStyle = '#ea580c';
+        ctx.fillText('SMA NEGERI 1 KLATEN', 338, 140);
+
+        // Line 2: Raised Emerald Green "SEKOLAH INSPIRASI"
+        ctx.font = '800 64px Inter, sans-serif';
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillText('SEKOLAH INSPIRASI', 432, 238);
+        ctx.fillStyle = '#15803d';
+        ctx.fillText('SEKOLAH INSPIRASI', 428, 234);
+
+        // Line 3: Metallic Italic Tagline
+        ctx.font = 'italic 600 44px "Playfair Display", Georgia, serif';
+        ctx.fillStyle = '#334155';
+        ctx.fillText('Membangun Prestasi, Menebar Inspirasi', 416, 326);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        return tex;
+      },
+
+      // Procedural Soft Cloud Dome Texture
+      createCloudTexture() {
+        const size = 512;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, size, size);
+        for (let i = 0; i < 65; i++) {
+          const x = Math.random() * size;
+          const y = Math.random() * size;
+          const r = 24 + Math.random() * 64;
+          const g = ctx.createRadialGradient(x, y, 4, x, y, r);
+          g.addColorStop(0, 'rgba(255,255,255,0.45)');
+          g.addColorStop(0.55, 'rgba(240,246,255,0.20)');
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        return this.configure(new THREE.CanvasTexture(c), 3, 3, true);
+      }
+    };
+
+    // Paint Official Logo on Loading Screen & Top-Left HUD immediately
+    (function renderUILogos() {
+      const lc = document.getElementById('loader-logo').getContext('2d');
+      TextureFactory.drawSmansaLogo(lc, 78, 92, 0.78);
+      const hc = document.getElementById('hud-logo').getContext('2d');
+      TextureFactory.drawSmansaLogo(hc, 48, 56, 0.46);
+    })();
+
+    // =========================================================================
+    // 3. THREE.JS CORE SCENE, RENDERER, SKY, LIGHTING & POST-PROCESSING
+    // =========================================================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0xc4d9ec, 0.0026);
+
+    const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.25, 620);
+    camera.position.set(42, 36, 56);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.84;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
+    container.appendChild(renderer.domElement);
+
+    // (Composer + color grading didefinisikan di bagian 10)
+
+    // Physical Sky Shader & PMREM IBL Environment
+    const sky = new Sky();
+    sky.scale.setScalar(450);
+    scene.add(sky);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    let envRT = null;
+
+    // Soft Animated Cloud Layer
+    const cloudMat = new THREE.MeshBasicMaterial({
+      map: TextureFactory.createCloudTexture(),
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const cloudPlane = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), cloudMat);
+    cloudPlane.rotation.x = Math.PI / 2;
+    cloudPlane.position.y = 92;
+    scene.add(cloudPlane);
+
+    // Lighting Rig: Key Sun + Hemisphere + Subtle Sky Bounce Fill
+    const sunLight = new THREE.DirectionalLight(0xfff4df, 2.35);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.camera.near = 18;
+    sunLight.shadow.camera.far = 265;
+    const shadowBound = 80;
+    sunLight.shadow.camera.left = -shadowBound;
+    sunLight.shadow.camera.right = shadowBound;
+    sunLight.shadow.camera.top = shadowBound;
+    sunLight.shadow.camera.bottom = -shadowBound;
+    sunLight.shadow.bias = -0.00045;
+    sunLight.shadow.normalBias = 0.035;
+    scene.add(sunLight);
+
+    const hemiLight = new THREE.HemisphereLight(0xaad2f5, 0x5c6b4e, 0.56);
+    scene.add(hemiLight);
+
+    const bounceLight = new THREE.DirectionalLight(0x9ec5e8, 0.28);
+    bounceLight.position.set(-40, 26, -50);
+    scene.add(bounceLight);
+
+    // Practical Evening Lights & Emissive Fixtures
+    const practicalLights = [];
+    function addPracticalLight(x, y, z, color = 0xffe4b5, intensity = 10, distance = 18) {
+      const pl = new THREE.PointLight(color, 0, distance, 1.8);
+      pl.position.set(x, y, z);
+      scene.add(pl);
+      practicalLights.push({ light: pl, maxIntensity: intensity });
+      return pl;
+    }
+
+    // Shared Ceiling Lamp Material (toggles emissive in sunset/rain)
+    const ceilingLampMat = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      emissive: 0xfff3d1,
+      emissiveIntensity: 0.08,
+      roughness: 0.35
+    });
+    function addCeilingLampFixture(parent, x, y, z) {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.06, 0.16), ceilingLampMat);
+      lamp.position.set(x, y, z);
+      parent.add(lamp);
+    }
+
+    // =========================================================================
+    // 4. SHARED PBR MATERIALS LIBRARY (HIGH PERFORMANCE, NO TRANSMISSION)
+    // =========================================================================
+    const M = {};
+    const wettableMaterials = [];
+
+    function initMaterials() {
+      const pavingTex = TextureFactory.createPaving3DTextures(10, 18);
+      const pavingPlazaTex = TextureFactory.createPaving3DTextures(14, 7);
+      const roofTex = TextureFactory.createClayRoofTextures(8, 4);
+      const stoneTex = TextureFactory.createStoneWallTextures(14, 1);
+      const grassTex = TextureFactory.createGrassTexture(8, 12);
+      const concreteTex = TextureFactory.createConcreteTexture(14, 14, '#c7cac6');
+      const acpTex = TextureFactory.createACPTexture(4, 2);
+      const greenCorrTex = TextureFactory.createGlossyGreenTileTexture(12, 2);
+
+      M.paving3D = new THREE.MeshStandardMaterial({
+        map: pavingTex.map,
+        bumpMap: pavingTex.bumpMap,
+        bumpScale: 0.04,
+        roughnessMap: pavingTex.roughnessMap,
+        roughness: 0.72,
+        metalness: 0.05
+      });
+      M.pavingPlaza = new THREE.MeshStandardMaterial({
+        map: pavingPlazaTex.map,
+        bumpMap: pavingPlazaTex.bumpMap,
+        bumpScale: 0.04,
+        roughnessMap: pavingPlazaTex.roughnessMap,
+        roughness: 0.72,
+        metalness: 0.05
+      });
+      M.greenTileCorr = new THREE.MeshStandardMaterial({
+        map: greenCorrTex,
+        roughness: 0.2,
+        metalness: 0.08
+      });
+      M.concrete = new THREE.MeshStandardMaterial({
+        map: concreteTex,
+        roughness: 0.85,
+        metalness: 0.02
+      });
+      M.asphalt = new THREE.MeshStandardMaterial({
+        color: 0x363b40,
+        roughness: 0.88,
+        metalness: 0.04
+      });
+      M.grass = new THREE.MeshStandardMaterial({
+        map: grassTex,
+        roughness: 0.94,
+        metalness: 0.0
+      });
+      M.clayRoof = new THREE.MeshStandardMaterial({
+        map: roofTex.map,
+        bumpMap: roofTex.bumpMap,
+        bumpScale: 0.08,
+        roughness: 0.76,
+        metalness: 0.04
+      });
+      M.roofRidge = new THREE.MeshStandardMaterial({
+        color: 0x9e4020,
+        roughness: 0.72
+      });
+      M.stoneWall = new THREE.MeshStandardMaterial({
+        map: stoneTex.map,
+        bumpMap: stoneTex.bumpMap,
+        bumpScale: 0.08,
+        roughness: 0.86
+      });
+
+      // Exact SMANSA Architectural Palette (calibrated against overexposure)
+      M.whiteWall = new THREE.MeshStandardMaterial({ color: 0xe6e8e5, roughness: 0.78 });
+      M.creamCurb = new THREE.MeshStandardMaterial({ color: 0xd7dccf, roughness: 0.82 });
+      M.wallPastelGreen = new THREE.MeshStandardMaterial({ color: 0x82c47e, roughness: 0.72 });
+      M.darkGreen = new THREE.MeshStandardMaterial({ color: 0x224c28, roughness: 0.58 });
+      M.darkWallTile = new THREE.MeshStandardMaterial({ color: 0x2d6b43, roughness: 0.28, metalness: 0.08 });
+      M.orangeBand = new THREE.MeshStandardMaterial({ color: 0xe67b08, roughness: 0.44 });
+      M.goldTrim = new THREE.MeshStandardMaterial({ color: 0xe5b814, roughness: 0.36, metalness: 0.25 });
+      M.acpWhite = new THREE.MeshStandardMaterial({ map: acpTex, roughness: 0.34, metalness: 0.22 });
+      M.anthracite = new THREE.MeshStandardMaterial({ color: 0x2d333b, roughness: 0.42, metalness: 0.35 });
+      M.orangeACP = new THREE.MeshStandardMaterial({ color: 0xe45a1a, roughness: 0.36, metalness: 0.14 });
+      M.yellowPortal = new THREE.MeshStandardMaterial({ color: 0xf4be08, roughness: 0.32, metalness: 0.14 });
+      M.terracotta = new THREE.MeshStandardMaterial({ color: 0xc54e28, roughness: 0.68 });
+      M.lobbyGranite = new THREE.MeshStandardMaterial({ color: 0xdce1de, roughness: 0.22, metalness: 0.08 });
+      M.matteBlack = new THREE.MeshStandardMaterial({ color: 0x1d2024, roughness: 0.62 });
+      M.ironBlack = new THREE.MeshStandardMaterial({ color: 0x1f2428, roughness: 0.42, metalness: 0.65 });
+      M.ironGreen = new THREE.MeshStandardMaterial({ color: 0x1d4d2c, roughness: 0.46, metalness: 0.45 });
+      M.woodDoor = new THREE.MeshStandardMaterial({ color: 0x8c5a34, roughness: 0.55 });
+      M.chrome = new THREE.MeshStandardMaterial({ color: 0xdce3ea, roughness: 0.18, metalness: 0.88 });
+      M.goldMetal = new THREE.MeshStandardMaterial({ color: 0xf2be22, roughness: 0.24, metalness: 0.85 });
+      M.red3DText = new THREE.MeshStandardMaterial({ color: 0xdc1e24, roughness: 0.34, metalness: 0.12 });
+      M.windowGlass = new THREE.MeshStandardMaterial({
+        color: 0x102229,
+        roughness: 0.1,
+        metalness: 0.78,
+        envMapIntensity: 1.4
+      });
+      M.clearGlass = new THREE.MeshStandardMaterial({
+        color: 0xb8dce8,
+        roughness: 0.08,
+        metalness: 0.25,
+        transparent: true,
+        opacity: 0.42,
+        envMapIntensity: 1.3
+      });
+      M.pondWater = new THREE.MeshStandardMaterial({
+        color: 0x3b6e42,
+        roughness: 0.09,
+        metalness: 0.32,
+        envMapIntensity: 1.45
+      });
+      M.tennisCourt = new THREE.MeshStandardMaterial({
+        map: TextureFactory.createTennisCourtTexture(),
+        roughness: 0.78,
+        metalness: 0.04
+      });
+      M.basketCourt = new THREE.MeshStandardMaterial({
+        map: TextureFactory.createBasketballCourtTexture(),
+        roughness: 0.76,
+        metalness: 0.04
+      });
+      M.canopyWhite = new THREE.MeshStandardMaterial({
+        color: 0xdce4ec,
+        roughness: 0.4,
+        metalness: 0.2,
+        transparent: true,
+        opacity: 0.86
+      });
+
+      // Register surfaces that turn glossy & reflective during Rain Mode
+      wettableMaterials.push(
+        { mat: M.paving3D, dry: 0.72, wet: 0.10 },
+        { mat: M.pavingPlaza, dry: 0.72, wet: 0.10 },
+        { mat: M.greenTileCorr, dry: 0.20, wet: 0.06 },
+        { mat: M.concrete, dry: 0.85, wet: 0.16 },
+        { mat: M.asphalt, dry: 0.88, wet: 0.14 },
+        { mat: M.tennisCourt, dry: 0.78, wet: 0.11 },
+        { mat: M.basketCourt, dry: 0.76, wet: 0.11 }
+      );
+    }
+
+    // =========================================================================
+    // 5. ARCHITECTURAL COMPONENT HELPERS (NO PLAIN PRIMITIVES)
+    // =========================================================================
+    const acFanBlades = [];
+
+    function addBox(parent, w, h, d, mat, x, y, z, cast = true, receive = true) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = cast;
+      mesh.receiveShadow = receive;
+      parent.add(mesh);
+      return mesh;
+    }
+
+    // Authentic Javanese Limasan / Hip Roof with Overhang & Ridge Caps
+    function createHipRoof(width, depth, height, overhang = 0.9) {
+      const g = new THREE.Group();
+      const hw = width / 2 + overhang;
+      const hd = depth / 2 + overhang;
+      const ridgeLen = Math.max(0.2, Math.abs(width - depth));
+      const alongX = width >= depth;
+      const rx = alongX ? ridgeLen / 2 : 0.05;
+      const rz = alongX ? 0.05 : ridgeLen / 2;
+
+      const positions = [
+        // South slope
+        -hw, 0, hd,   hw, 0, hd,   rx, height, rz,
+        -hw, 0, hd,   rx, height, rz,   -rx, height, rz,
+        // North slope
+        hw, 0, -hd,  -hw, 0, -hd,  -rx, height, -rz,
+        hw, 0, -hd,  -rx, height, -rz,  rx, height, -rz,
+        // West slope
+        -hw, 0, -hd, -hw, 0, hd,   -rx, height, rz,
+        -hw, 0, -hd, -rx, height, rz,  -rx, height, -rz,
+        // East slope
+        hw, 0, hd,    hw, 0, -hd,   rx, height, -rz,
+        hw, 0, hd,    rx, height, -rz,  rx, height, rz
+      ];
+
+      const uvs = [];
+      for (let i = 0; i < positions.length; i += 3) {
+        const px = positions[i], py = positions[i + 1], pz = positions[i + 2];
+        uvs.push((px + pz) * 0.14, py * 0.35 + (Math.abs(px) + Math.abs(pz)) * 0.06);
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.computeVertexNormals();
+
+      const roofMesh = new THREE.Mesh(geom, M.clayRoof);
+      roofMesh.castShadow = true;
+      roofMesh.receiveShadow = true;
+      g.add(roofMesh);
+
+      // Under-eave soffit ceiling
+      const soffit = new THREE.Mesh(new THREE.PlaneGeometry(hw * 2, hd * 2), M.whiteWall);
+      soffit.rotation.x = Math.PI / 2;
+      soffit.position.y = 0.02;
+      g.add(soffit);
+
+      // Raised Clay Ridge (Nok / Bubungan)
+      const ridgeW = alongX ? ridgeLen + 0.3 : 0.28;
+      const ridgeD = alongX ? 0.28 : ridgeLen + 0.3;
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(ridgeW, 0.24, ridgeD), M.roofRidge);
+      ridge.position.set(0, height + 0.08, 0);
+      ridge.castShadow = true;
+      g.add(ridge);
+
+      return g;
+    }
+
+    // Recessed Architectural Window with Mullions, Sill, Awning Sash & Top Vents
+    function createRecessedWindow(w, h, panes = 3, withVents = true, tilted = false) {
+      const g = new THREE.Group();
+      // Outer dark frame
+      addBox(g, w + 0.14, 0.09, 0.20, M.matteBlack, 0, h / 2, 0.03, false, true);
+      addBox(g, w + 0.16, 0.10, 0.24, M.matteBlack, 0, -h / 2, 0.04, false, true);
+      addBox(g, 0.09, h, 0.20, M.matteBlack, -w / 2, 0, 0.03, false, true);
+      addBox(g, 0.09, h, 0.20, M.matteBlack, w / 2, 0, 0.03, false, true);
+
+      // Recessed reflective dark glass
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.04, h - 0.04), M.windowGlass);
+      glass.position.z = -0.02;
+      g.add(glass);
+
+      // Vertical mullions + optional tilted awning sash
+      const paneW = w / panes;
+      for (let i = 1; i < panes; i++) {
+        addBox(g, 0.06, h - 0.04, 0.12, M.matteBlack, -w / 2 + i * paneW, 0, 0.02, false, false);
+      }
+      if (tilted) {
+        const sash = new THREE.Mesh(new THREE.BoxGeometry(paneW - 0.08, h - 0.12, 0.04), M.windowGlass);
+        sash.position.set(0, -0.02, 0.14);
+        sash.rotation.x = -0.22;
+        g.add(sash);
+      }
+
+      // Upper ventilation slots above window
+      if (withVents) {
+        for (let v = 0; v < 3; v++) {
+          const vx = -w * 0.3 + v * (w * 0.3);
+          addBox(g, 0.22, 0.34, 0.10, M.darkGreen, vx, h / 2 + 0.34, 0.01, false, false);
+          addBox(g, 0.14, 0.24, 0.12, M.matteBlack, vx, h / 2 + 0.34, 0.02, false, false);
+        }
+      }
+      return g;
+    }
+
+    // Outdoor AC Condenser Unit with Rotating Fan Blade
+    function createACUnit() {
+      const g = new THREE.Group();
+      addBox(g, 0.82, 0.56, 0.32, M.whiteWall, 0, 0, 0.16, true, true);
+      addBox(g, 0.06, 0.38, 0.36, M.anthracite, -0.32, -0.34, 0.16, false, false);
+      addBox(g, 0.06, 0.38, 0.36, M.anthracite, 0.32, -0.34, 0.16, false, false);
+
+      const grill = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.04, 16), M.matteBlack);
+      grill.rotation.x = Math.PI / 2;
+      grill.position.set(-0.14, 0, 0.32);
+      g.add(grill);
+
+      const fan = new THREE.Group();
+      fan.position.set(-0.14, 0, 0.34);
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.015), M.anthracite);
+      const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.32, 0.015), M.anthracite);
+      fan.add(b1, b2);
+      g.add(fan);
+      acFanBlades.push(fan);
+      return g;
+    }
+
+    // Corridor Handwashing Sink (Wastafel khas SMANSA)
+    function createWastafel() {
+      const g = new THREE.Group();
+      addBox(g, 0.62, 1.25, 0.16, M.wallPastelGreen, 0, 0.625, -0.18, true, true);
+      addBox(g, 0.54, 0.24, 0.42, M.whiteWall, 0, 0.84, 0.08, true, true);
+      const basin = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.10, 0.30), M.lobbyGranite);
+      basin.position.set(0, 0.93, 0.09);
+      g.add(basin);
+      const tap = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.18, 8), M.chrome);
+      tap.rotation.x = Math.PI / 2;
+      tap.position.set(0, 1.06, -0.02);
+      g.add(tap);
+      return g;
+    }
+
+    // Wooden Corridor Shoe Rack (Rak Sepatu Perpustakaan / Kelas)
+    function createShoeRack() {
+      const g = new THREE.Group();
+      addBox(g, 1.25, 0.95, 0.36, M.woodDoor, 0, 0.475, 0, true, true);
+      addBox(g, 1.15, 0.05, 0.34, M.matteBlack, 0, 0.28, 0.02, false, false);
+      addBox(g, 1.15, 0.05, 0.34, M.matteBlack, 0, 0.56, 0.02, false, false);
+      return g;
+    }
+
+    // School Corridor Trash Bin (Green or Red-Black)
+    function createTrashBin(isGreen = true, labelText = '') {
+      const g = new THREE.Group();
+      const bodyMat = isGreen
+        ? new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.45 })
+        : new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.45 });
+      addBox(g, 0.44, 0.64, 0.38, bodyMat, 0, 0.32, 0, true, true);
+      addBox(g, 0.48, 0.10, 0.42, M.matteBlack, 0, 0.68, 0, true, true);
+      if (labelText) {
+        const tex = TextureFactory.createSignageTexture(
+          [{ text: labelText, y: 64, font: '800 56px Inter, sans-serif', color: '#ffffff' }],
+          { width: 256, height: 128, bg: isGreen ? '#15803d' : '#991b1b' }
+        );
+        const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.18), new THREE.MeshStandardMaterial({ map: tex }));
+        plate.position.set(0, 0.38, 0.195);
+        g.add(plate);
+      }
+      return g;
+    }
+
+    // Andesite Stone Ganesha Statue (at Main Building Entrance Corner)
+    function createGaneshaStatue() {
+      const g = new THREE.Group();
+      const stoneMat = new THREE.MeshStandardMaterial({ color: 0x5c6066, roughness: 0.84 });
+      addBox(g, 0.92, 0.58, 0.92, stoneMat, 0, 0.29, 0);
+      addBox(g, 0.78, 0.14, 0.78, stoneMat, 0, 0.64, 0);
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), stoneMat);
+      body.scale.set(1.0, 1.15, 0.9);
+      body.position.set(0, 1.02, 0);
+      body.castShadow = true;
+      g.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), stoneMat);
+      head.position.set(0, 1.48, 0.04);
+      head.castShadow = true;
+      g.add(head);
+      const crown = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.36, 10), stoneMat);
+      crown.position.set(0, 1.82, 0.02);
+      g.add(crown);
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.04, 0.34, 8), stoneMat);
+      trunk.position.set(0.04, 1.32, 0.22);
+      trunk.rotation.x = 0.35;
+      trunk.rotation.z = -0.25;
+      g.add(trunk);
+      const earL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.26, 0.06), stoneMat);
+      earL.position.set(-0.26, 1.48, 0);
+      const earR = earL.clone();
+      earR.position.x = 0.26;
+      g.add(earL, earR);
+      return g;
+    }
+
+    // =========================================================================
+    // 6. WORLD BUILDERS (EXACT SATELLITE MASTERPLAN — 1 UNIT = 1 METER)
+    // =========================================================================
+    let flagMesh = null;
+    let flagBasePos = null;
+    let ledCanvasCtx = null;
+    let ledTexture = null;
+    let ledScrollX = 0;
+
+    // --- ZONA 1: GROUND, PERIMETER, FRONT STREET, HORSESHOE DRIVEWAY, POND & SECURITY POST ---
+    function buildZone1FrontAndBase() {
+      const grp = new THREE.Group();
+
+      // Distant Klaten plain ground
+      const outerGround = new THREE.Mesh(
+        new THREE.PlaneGeometry(520, 520),
+        new THREE.MeshStandardMaterial({ color: 0x5c7344, roughness: 0.95 })
+      );
+      outerGround.rotation.x = -Math.PI / 2;
+      outerGround.position.y = -0.18;
+      outerGround.receiveShadow = true;
+      grp.add(outerGround);
+
+      // Main campus concrete ground slab (X: -49 to +49, Z: -58 to +66)
+      const campusBase = new THREE.Mesh(new THREE.BoxGeometry(100, 0.14, 126), M.concrete);
+      campusBase.position.set(0, -0.07, 4.0);
+      campusBase.receiveShadow = true;
+      grp.add(campusBase);
+
+      // Protruding North-West concrete apron supporting the Mosque (agak menjorok ke luar di atas kiri)
+      const mosqueApron = new THREE.Mesh(new THREE.BoxGeometry(19.5, 0.14, 21.0), M.concrete);
+      mosqueApron.position.set(-49.0, -0.07, -49.0);
+      mosqueApron.receiveShadow = true;
+      grp.add(mosqueApron);
+
+      // Front highway road & sidewalk along South edge (Z = +67 to +78)
+      addBox(grp, 160, 0.10, 10.5, M.asphalt, 0, -0.08, 72.5, false, true);
+      addBox(grp, 118, 0.14, 2.2, M.terracotta, 0, -0.02, 66.2, false, true);
+      // Road center dashed markings
+      for (let rx = -65; rx <= 65; rx += 8) {
+        addBox(grp, 4.0, 0.02, 0.22, M.whiteWall, rx, -0.02, 72.5, false, false);
+      }
+
+      // Front Boundary Fence along Z = +65 (with 2 entrance gates matching Horseshoe Driveway: X = -10.5 & +10.5)
+      const gateRanges = [[-14.2, -6.8], [6.8, 14.2]];
+      function isInsideGate(px) {
+        return gateRanges.some(([a, b]) => px > a && px < b);
+      }
+
+      for (let x = -48; x <= 48; x += 4) {
+        if (!isInsideGate(x)) {
+          // Fence pillar with orange vertical recessed panel & terracotta pyramid cap
+          addBox(grp, 0.84, 0.34, 0.84, M.creamCurb, x, 0.17, 65.0);
+          addBox(grp, 0.66, 2.25, 0.66, M.whiteWall, x, 1.38, 65.0);
+          addBox(grp, 0.34, 1.32, 0.70, M.orangeACP, x, 1.42, 65.0, false, true);
+          addBox(grp, 0.86, 0.16, 0.86, M.creamCurb, x, 2.52, 65.0);
+          const cap = new THREE.Mesh(new THREE.ConeGeometry(0.68, 0.56, 4), M.terracotta);
+          cap.rotation.y = Math.PI / 4;
+          cap.position.set(x, 2.86, 65.0);
+          cap.castShadow = true;
+          grp.add(cap);
+        }
+
+        // Fence wall spans between pillars
+        if (x < 48 && !isInsideGate(x + 2)) {
+          // Rubble stone foundation
+          addBox(grp, 3.35, 0.92, 0.36, M.stoneWall, x + 2, 0.46, 65.0);
+          // Clean white middle wall
+          addBox(grp, 3.35, 0.72, 0.32, M.whiteWall, x + 2, 1.28, 65.0);
+          // Dark green horizontal iron railing bars at top
+          for (let b = 0; b < 3; b++) {
+            addBox(grp, 3.35, 0.055, 0.055, M.ironGreen, x + 2, 1.82 + b * 0.18, 65.0, false, false);
+          }
+          addBox(grp, 3.4, 0.14, 0.36, M.whiteWall, x + 2, 2.34, 65.0);
+        }
+      }
+
+      // Giant Raised Red 3D Signage above Front Fence: "SMA NEGERI 1 KLATEN"
+      const frontSignTex = TextureFactory.createSignageTexture(
+        [{ text: 'SMA NEGERI 1 KLATEN', y: 128, font: '900 104px Inter, sans-serif', color: '#ee1d23', shadow: true }],
+        { width: 1536, height: 256, bg: 'rgba(0,0,0,0)' }
+      );
+      // Draw transparent background cleanly for floating 3D letters feel
+      const cLetters = document.createElement('canvas');
+      cLetters.width = 1536; cLetters.height = 256;
+      const clCtx = cLetters.getContext('2d');
+      clCtx.textAlign = 'center';
+      clCtx.textBaseline = 'middle';
+      clCtx.font = '900 112px Inter, sans-serif';
+      clCtx.lineWidth = 14;
+      clCtx.strokeStyle = '#ffffff';
+      clCtx.strokeText('SMA NEGERI 1 KLATEN', 768, 134);
+      clCtx.fillStyle = '#e11d24';
+      clCtx.fillText('SMA NEGERI 1 KLATEN', 768, 134);
+      const lettersTex = new THREE.CanvasTexture(cLetters);
+      lettersTex.colorSpace = THREE.SRGBColorSpace;
+      lettersTex.anisotropy = 8;
+
+      const signGeo = new THREE.PlaneGeometry(14.5, 2.35);
+      const signMat = new THREE.MeshStandardMaterial({ map: lettersTex, transparent: true, alphaTest: 0.15, roughness: 0.35, side: THREE.DoubleSide });
+      const frontSignMesh = new THREE.Mesh(signGeo, signMat);
+      frontSignMesh.position.set(0, 3.55, 65.18);
+      grp.add(frontSignMesh);
+      // Black support posts under giant signage
+      for (const sx of [-5.2, -1.8, 1.8, 5.2]) {
+        addBox(grp, 0.12, 1.25, 0.12, M.ironBlack, sx, 2.75, 65.0);
+      }
+
+      // Horseshoe Drop-Off Driveway (curving from West & East gates to Modern ACP Lobby)
+      const driveShape = new THREE.Shape();
+      driveShape.absarc(0, 0, 14.5, 0, Math.PI, false);
+      const driveHole = new THREE.Path();
+      driveHole.absarc(0, 0, 7.6, 0, Math.PI, true);
+      driveShape.holes.push(driveHole);
+      const driveGeo = new THREE.ShapeGeometry(driveShape, 40);
+      const driveMesh = new THREE.Mesh(driveGeo, M.concrete);
+      driveMesh.rotation.x = -Math.PI / 2;
+      driveMesh.position.set(0, 0.04, 65.0);
+      driveMesh.receiveShadow = true;
+      grp.add(driveMesh);
+
+      // Black-and-white striped curbs flanking driveway entrance
+      for (let i = 0; i < 16; i++) {
+        const ang = (i / 15) * Math.PI;
+        const cx = Math.cos(ang) * 7.8;
+        const cz = 65.0 - Math.sin(ang) * 7.8;
+        const curbMat = i % 2 === 0 ? M.whiteWall : M.matteBlack;
+        const curb = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.22, 0.28), curbMat);
+        curb.position.set(cx, 0.11, cz);
+        curb.rotation.y = ang + Math.PI / 2;
+        grp.add(curb);
+      }
+
+      // Central Green Island inside Horseshoe (Circular Statue Pond + Security Post)
+      const island = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.6, 0.22, 32, 1, false, 0, Math.PI), M.grass);
+      island.rotation.y = -Math.PI / 2;
+      island.position.set(0, 0.08, 64.9);
+      island.receiveShadow = true;
+      grp.add(island);
+
+      // --- CIRCULAR STATUE POND (Center of Horseshoe Island: X = 0, Z = 59.5) ---
+      const pond = new THREE.Group();
+      pond.position.set(0, 0.14, 59.8);
+      const pondRim = new THREE.Mesh(new THREE.TorusGeometry(3.15, 0.22, 12, 36), M.creamCurb);
+      pondRim.rotation.x = Math.PI / 2;
+      pondRim.position.y = 0.22;
+      pond.add(pondRim);
+
+      const pondWall = new THREE.Mesh(new THREE.CylinderGeometry(3.25, 3.3, 0.44, 32), M.creamCurb);
+      pondWall.position.y = 0.22;
+      pond.add(pondWall);
+
+      const water = new THREE.Mesh(new THREE.CircleGeometry(3.02, 32), M.pondWater);
+      water.rotation.x = -Math.PI / 2;
+      water.position.y = 0.34;
+      pond.add(water);
+
+      // Classic Black Wrought-Iron Spearhead Fence around Pond
+      const fencePosts = 28;
+      for (let i = 0; i < fencePosts; i++) {
+        const a = (i / fencePosts) * Math.PI * 2;
+        const fx = Math.cos(a) * 3.22;
+        const fz = Math.sin(a) * 3.22;
+        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.92, 6), M.ironBlack);
+        bar.position.set(fx, 0.85, fz);
+        pond.add(bar);
+        const spear = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 4), M.ironBlack);
+        spear.position.set(fx, 1.36, fz);
+        pond.add(spear);
+      }
+      const railTop = new THREE.Mesh(new THREE.TorusGeometry(3.22, 0.03, 6, 36), M.ironBlack);
+      railTop.rotation.x = Math.PI / 2;
+      railTop.position.y = 1.18;
+      const railMid = railTop.clone();
+      railMid.position.y = 0.62;
+      pond.add(railTop, railMid);
+
+      // Center Pedestal (Black + Bright Orange Ring) & Heroic Youth Figure Statue
+      const pedBase = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.25, 0.35, 24), M.matteBlack);
+      pedBase.position.y = 0.48;
+      const pedOrange = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.02, 0.62, 24), M.orangeACP);
+      pedOrange.position.y = 0.95;
+      const pedCap = new THREE.Mesh(new THREE.CylinderGeometry(1.06, 0.98, 0.16, 24), M.matteBlack);
+      pedCap.position.y = 1.32;
+      pond.add(pedBase, pedOrange, pedCap);
+
+      // Sculpted Figure (Gold-Bronze skin, Dark Green Kain Lilit, Gold Sash, Raised Right Fist)
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0xc99c58, roughness: 0.44, metalness: 0.25 });
+      const kainMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.58 });
+      const fig = new THREE.Group();
+      fig.position.y = 1.42;
+      // Legs
+      const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.95, 10), skinMat);
+      legL.position.set(-0.14, 0.48, 0);
+      const legR = legL.clone();
+      legR.position.set(0.14, 0.48, 0.06);
+      // Wrapped Green Cloth (Kain)
+      const kain = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 0.72, 12), kainMat);
+      kain.position.set(0, 0.78, 0);
+      // Gold Waist Sash
+      const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.14, 12), M.goldMetal);
+      belt.position.set(0, 1.12, 0);
+      // Torso & Head
+      const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.20, 0.68, 12), skinMat);
+      torso.position.set(0, 1.48, 0);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 12), skinMat);
+      head.position.set(0, 2.0, 0);
+      // Left Arm & Raised Right Arm (Fist Up)
+      const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.68, 8), skinMat);
+      armL.position.set(-0.30, 1.44, 0.05);
+      armL.rotation.z = 0.22;
+      const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.84, 8), skinMat);
+      armR.position.set(0.32, 2.08, 0.06);
+      armR.rotation.z = -0.18;
+      const fist = new THREE.Mesh(new THREE.SphereGeometry(0.095, 10, 10), skinMat);
+      fist.position.set(0.38, 2.52, 0.06);
+      fig.add(legL, legR, kain, belt, torso, head, armL, armR, fist);
+      fig.traverse(c => { if (c.isMesh) c.castShadow = true; });
+      pond.add(fig);
+      grp.add(pond);
+
+      // --- POS SATPAM (Security Post on East Front Corner of Island: X = 4.6, Z = 62.6) ---
+      const post = new THREE.Group();
+      post.position.set(4.5, 0.16, 62.5);
+      addBox(post, 3.2, 0.16, 2.8, M.lobbyGranite, 0, 0.08, 0);
+      // Lower solid white-grey wainscot
+      addBox(post, 3.0, 0.92, 0.14, M.whiteWall, 0, 0.62, 1.32);
+      addBox(post, 3.0, 0.92, 0.14, M.whiteWall, 0, 0.62, -1.32);
+      addBox(post, 0.14, 0.92, 2.7, M.whiteWall, -1.43, 0.62, 0);
+      addBox(post, 0.14, 0.92, 2.7, M.whiteWall, 1.43, 0.62, 0);
+      // Panoramic Silver-Framed Glass Walls
+      addBox(post, 2.9, 1.45, 0.05, M.clearGlass, 0, 1.82, 1.32, false, false);
+      addBox(post, 2.9, 1.45, 0.05, M.clearGlass, 0, 1.82, -1.32, false, false);
+      addBox(post, 0.05, 1.45, 2.6, M.clearGlass, -1.43, 1.82, 0, false, false);
+      addBox(post, 0.05, 1.45, 2.6, M.clearGlass, 1.43, 1.82, 0, false, false);
+      // Silver aluminum corner mullions & curved stainless door handle
+      for (const [mx, mz] of [[-1.44, -1.33], [1.44, -1.33], [-1.44, 1.33], [1.44, 1.33]]) {
+        addBox(post, 0.10, 2.55, 0.10, M.chrome, mx, 1.38, mz);
+      }
+      addBox(post, 0.04, 0.55, 0.04, M.chrome, -0.35, 1.32, 1.42, false, false);
+      // Inside wooden desk & bench
+      addBox(post, 1.45, 0.72, 0.65, M.woodDoor, 0.45, 0.52, -0.65);
+      addBox(post, 1.65, 0.44, 0.48, M.woodDoor, -0.45, 0.38, 0.55);
+      // Orange modern roof overhang
+      addBox(post, 3.65, 0.42, 3.3, M.orangeACP, 0, 2.86, 0);
+      addBox(post, 3.5, 0.12, 3.15, M.whiteWall, 0, 2.62, 0);
+      grp.add(post);
+
+      // Small Front Flagpole beside Island
+      const smallPole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 7.5, 10), M.whiteWall);
+      smallPole.position.set(-5.6, 3.8, 61.8);
+      smallPole.castShadow = true;
+      grp.add(smallPole);
+
+      // Campus Perimeter Boundary Walls (West steps outward at North-West to wrap protruding Mosque)
+      addBox(grp, 0.45, 2.7, 105.5, M.whiteWall, -48.0, 1.35, 12.25); // West wall South-to-Mid
+      addBox(grp, 10.5, 2.7, 0.45, M.whiteWall, -53.25, 1.35, -40.5); // Step-out South edge of Mosque bay
+      addBox(grp, 0.45, 2.7, 17.8, M.whiteWall, -58.3, 1.35, -49.25); // Protruding West wall behind Mosque Mihrab
+      addBox(grp, 0.45, 2.7, 123.0, M.whiteWall, 48.0, 1.35, 3.5);    // East perimeter wall
+      addBox(grp, 106.8, 2.7, 0.45, M.whiteWall, -5.15, 1.35, -58.0); // North perimeter wall
+
+      scene.add(grp);
+    }
+
+    // --- ZONA 2: MODERN ACP LOBBY FACADE & SOUTH COURTYARD BUILDING (KELAS X-1 s/d X-8) ---
+    function buildZone2ModernACPAndSouthWing() {
+      const grp = new THREE.Group();
+
+      // Main South Building Block (Z = +39 to +47, X = -35 to +35) joining U-Wings seamlessly
+      // Left & Right solid rooms leaving central 9.2m Lobby Passage open at X: -4.6 to +4.6
+      addBox(grp, 31.2, 4.4, 8.2, M.whiteWall, -20.2, 2.2, 43.0);
+      addBox(grp, 31.2, 4.4, 8.2, M.whiteWall, 20.2, 2.2, 43.0);
+
+      // Continuous Hip Clay-Tile Roof across the whole South Building
+      const southRoof = createHipRoof(74.0, 10.2, 3.25, 0.9);
+      southRoof.position.set(0, 4.42, 42.6);
+      grp.add(southRoof);
+
+      // --- ICONIC MODERN ACP FACADE (Z = +47.3, X = -8.6 to +8.6) ---
+      const acp = new THREE.Group();
+      acp.position.set(0, 0, 47.4);
+
+      // Left & Right White ACP Vertical Piers + High Upper Header Panel (leaving central cutout)
+      addBox(acp, 3.2, 8.8, 0.65, M.acpWhite, -7.0, 4.4, 0);
+      addBox(acp, 3.2, 8.8, 0.65, M.acpWhite, 7.0, 4.4, 0);
+      addBox(acp, 14.0, 3.85, 0.65, M.acpWhite, 0, 6.88, 0);
+
+      // Anthracite Dark-Grey Outer Frame (Left, Right, Top Fascia)
+      addBox(acp, 0.82, 9.5, 0.85, M.anthracite, -8.85, 4.75, 0.05);
+      addBox(acp, 0.82, 9.5, 0.85, M.anthracite, 8.85, 4.75, 0.05);
+      addBox(acp, 18.55, 0.86, 0.92, M.anthracite, 0, 9.15, 0.08);
+
+      // High-Res Typography & Official Logo Plane on ACP Upper Header
+      const acpHeader = new THREE.Mesh(
+        new THREE.PlaneGeometry(15.2, 3.65),
+        new THREE.MeshStandardMaterial({ map: TextureFactory.createACPHeaderTexture(), roughness: 0.34, metalness: 0.16 })
+      );
+      acpHeader.position.set(0, 6.85, 0.34);
+      acp.add(acpHeader);
+
+      // 2 Stalked Metal Floodlights mounted on top of Anthracite Fascia
+      for (const fx of [-3.4, 2.8]) {
+        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.25, 8), M.chrome);
+        stalk.position.set(fx, 9.95, 0.45);
+        stalk.rotation.x = 0.55;
+        acp.add(stalk);
+        addBox(acp, 0.44, 0.24, 0.26, M.anthracite, fx, 10.35, 0.78);
+        addPracticalLight(fx, 9.6, 49.0, 0xfff0d4, 16, 22);
+      }
+
+      // Asymmetric Bright Orange Trapezoidal/Slanted Iconic Frame (#e45a1a)
+      const oShape = new THREE.Shape();
+      oShape.moveTo(-6.2, 0);
+      oShape.lineTo(-2.5, 5.85);
+      oShape.lineTo(6.3, 3.95);
+      oShape.lineTo(5.2, 0);
+      oShape.lineTo(4.05, 0);
+      oShape.lineTo(4.95, 3.15);
+      oShape.lineTo(-2.05, 4.65);
+      oShape.lineTo(-4.95, 0);
+      oShape.closePath();
+      const orangeFrame = new THREE.Mesh(
+        new THREE.ExtrudeGeometry(oShape, { depth: 0.78, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2 }),
+        M.orangeACP
+      );
+      orangeFrame.position.set(0, 0, 0.25);
+      orangeFrame.castShadow = true;
+      orangeFrame.receiveShadow = true;
+      acp.add(orangeFrame);
+
+      // Bright Yellow Rectangular Entrance Portal (#f4be08)
+      addBox(acp, 0.62, 3.85, 0.92, M.yellowPortal, -2.55, 1.925, 0.82);
+      addBox(acp, 0.62, 3.85, 0.92, M.yellowPortal, 2.55, 1.925, 0.82);
+      addBox(acp, 5.72, 0.62, 0.92, M.yellowPortal, 0, 3.85, 0.82);
+
+      // Two Slim Orange Columns on the Right side of Portal
+      addBox(acp, 0.36, 3.65, 0.36, M.orangeACP, 3.55, 1.825, 0.78);
+      addBox(acp, 0.36, 3.50, 0.36, M.orangeACP, 4.35, 1.75, 0.78);
+
+      // Decorative White-Orange Planter Urns flanking Portal
+      for (const px of [-3.65, -4.85, 5.35]) {
+        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.24, 0.62, 12), M.whiteWall);
+        pot.position.set(px, 0.31, 1.45);
+        pot.castShadow = true;
+        acp.add(pot);
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.04, 6, 14), M.orangeACP);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(px, 0.62, 1.45);
+        acp.add(rim);
+      }
+      grp.add(acp);
+
+      // --- THROUGH-LOBBY INTERIOR (Z = +39 to +47.2, X = -4.6 to +4.6) ---
+      const mosaicFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(9.2, 8.8),
+        new THREE.MeshStandardMaterial({ map: TextureFactory.createLobbyMosaicTexture(), roughness: 0.16, metalness: 0.06 })
+      );
+      mosaicFloor.rotation.x = -Math.PI / 2;
+      mosaicFloor.position.set(0, 0.12, 43.1);
+      mosaicFloor.receiveShadow = true;
+      grp.add(mosaicFloor);
+
+      // Glossy White Ceiling with Orange Perimeter Cove Trim
+      addBox(grp, 9.4, 0.16, 8.8, M.whiteWall, 0, 4.18, 43.1, false, true);
+      addBox(grp, 0.22, 0.28, 8.6, M.orangeACP, -4.45, 4.02, 43.1, false, false);
+      addBox(grp, 0.22, 0.28, 8.6, M.orangeACP, 4.45, 4.02, 43.1, false, false);
+      addCeilingLampFixture(grp, 0, 4.08, 45.0);
+      addCeilingLampFixture(grp, 0, 4.08, 41.2);
+      addPracticalLight(0, 3.6, 43.1, 0xfff2d6, 12, 16);
+
+      // Glass Entrance Doors at South End of Lobby
+      addBox(grp, 2.2, 3.1, 0.06, M.clearGlass, -3.4, 1.65, 46.8, false, false);
+      addBox(grp, 2.2, 3.1, 0.06, M.clearGlass, 3.4, 1.65, 46.8, false, false);
+
+      // Stainless 4-Seat Waiting Bench along West Lobby Wall
+      addBox(grp, 0.56, 0.08, 2.8, M.chrome, -4.05, 0.54, 43.2);
+      addBox(grp, 0.08, 0.48, 2.8, M.chrome, -4.30, 0.82, 43.2);
+      addBox(grp, 0.46, 0.44, 0.10, M.ironBlack, -4.05, 0.30, 42.1);
+      addBox(grp, 0.46, 0.44, 0.10, M.ironBlack, -4.05, 0.30, 44.3);
+
+      // Framed Certificate on West Lobby Wall
+      addBox(grp, 0.06, 0.72, 0.96, M.goldTrim, -4.55, 2.25, 43.2, false, false);
+      addBox(grp, 0.08, 0.58, 0.82, M.whiteWall, -4.53, 2.25, 43.2, false, false);
+
+      // SMAN 1 KLATEN Reception Desk on East Side of Lobby
+      const recDeskTex = TextureFactory.createSignageTexture(
+        [{ text: 'SMAN 1 KLATEN', y: 64, font: '900 54px Inter, sans-serif', color: '#14532d' }],
+        { width: 512, height: 128, bg: '#dcfce7', border: '#16a34a', borderWidth: 8 }
+      );
+      addBox(grp, 0.85, 1.05, 2.6, M.wallPastelGreen, 3.65, 0.64, 42.4);
+      const recFront = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.65), new THREE.MeshStandardMaterial({ map: recDeskTex }));
+      recFront.rotation.y = -Math.PI / 2;
+      recFront.position.set(3.21, 0.68, 42.4);
+      grp.add(recFront);
+
+      // --- NORTH-FACING COURTYARD CORRIDOR ALONG SOUTH BUILDING (KELAS X-1 s/d X-8) ---
+      addBox(grp, 60.0, 0.3, 2.4, M.greenTileCorr, 0, 0.15, 37.8, false, true);
+      for (const px of [-26, -20, -14, -8, -4.6, 4.6, 8, 14, 20, 26]) {
+        addBox(grp, 0.36, 4.2, 0.36, M.darkGreen, px, 2.2, 36.8);
+      }
+
+      // Courtyard-facing (North) SMANSA Pastel-Green Wall Cladding & Kelas 10 Classroom Bays (X-1 s/d X-8)
+      const southClassSections = [
+        { startX: -28.0, endX: -5.2, labels: ['KELAS X-1', 'KELAS X-2', 'KELAS X-3', 'KELAS X-4'] },
+        { startX: 5.2, endX: 28.0, labels: ['KELAS X-5', 'KELAS X-6', 'KELAS X-7', 'KELAS X-8'] }
+      ];
+      for (const sec of southClassSections) {
+        const secW = sec.endX - sec.startX;
+        const secCx = (sec.startX + sec.endX) / 2;
+        addBox(grp, secW, 1.25, 0.12, M.darkWallTile, secCx, 0.925, 38.86, false, true);
+        addBox(grp, secW, 3.05, 0.12, M.wallPastelGreen, secCx, 3.075, 38.86, false, true);
+
+        const bayW = secW / sec.labels.length;
+        sec.labels.forEach((lbl, idx) => {
+          const midX = sec.startX + (idx + 0.5) * bayW;
+          const bayGrp = new THREE.Group();
+          bayGrp.position.set(midX, 0.3, 38.8);
+          bayGrp.rotation.y = Math.PI; // Face North into the courtyard
+
+          const win = createRecessedWindow(2.35, 1.55, 3, true, true);
+          win.position.set(0.65, 2.05, 0.04);
+          bayGrp.add(win);
+
+          addBox(bayGrp, 1.02, 2.35, 0.12, M.darkGreen, -1.42, 1.18, 0.04);
+          addBox(bayGrp, 0.86, 2.22, 0.14, M.woodDoor, -1.42, 1.16, 0.04);
+
+          const plateTex = TextureFactory.createSignageTexture(
+            [{ text: lbl, y: 64, font: '800 48px Inter, sans-serif', color: '#ffffff' }],
+            { width: 384, height: 128, bg: '#166534', border: '#f5c518', borderWidth: 8 }
+          );
+          const plate = new THREE.Mesh(
+            new THREE.BoxGeometry(1.08, 0.32, 0.05),
+            new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.4 })
+          );
+          plate.position.set(-1.42, 2.66, 0.08);
+          bayGrp.add(plate);
+
+          if (idx % 2 === 0) {
+            const sink = createWastafel();
+            sink.position.set(-2.1, 0, 1.85);
+            sink.rotation.y = Math.PI;
+            bayGrp.add(sink);
+          } else {
+            const bin = createTrashBin(true, lbl.replace('KELAS ', ''));
+            bin.position.set(-2.1, 0.02, 1.62);
+            bayGrp.add(bin);
+          }
+
+          addCeilingLampFixture(bayGrp, 0, 3.85, 1.05);
+          grp.add(bayGrp);
+        });
+      }
+
+      // South exterior recessed windows along the front wings
+      for (const wx of [-29, -23, -17, -12, 12, 17, 23, 29]) {
+        const wExt = createRecessedWindow(2.4, 1.5, 3, false, false);
+        wExt.position.set(wx, 2.2, 47.12);
+        grp.add(wExt);
+      }
+
+      scene.add(grp);
+    }
+
+    // --- ZONA 3: COURTYARD, 3D ISOMETRIC PAVING AXIS, GRASS FIELDS & WAVING FLAGPOLE ---
+    function buildZone3CourtyardAndFlagpole() {
+      const grp = new THREE.Group();
+
+      // Central 3D Isometric Cube Paving Axis (X: -3.5 to +3.5, Z: +8.5 to +36.8)
+      const axis = new THREE.Mesh(new THREE.BoxGeometry(7.0, 0.14, 28.6), M.paving3D);
+      axis.position.set(0, 0.04, 22.6);
+      axis.receiveShadow = true;
+      grp.add(axis);
+
+      // Chamfered 45-degree Flared Front Plaza in front of Main Building (matching drone footage)
+      const plazaShape = new THREE.Shape();
+      plazaShape.moveTo(-3.5, 0);
+      plazaShape.lineTo(3.5, 0);
+      plazaShape.lineTo(13.2, 5.5);
+      plazaShape.lineTo(13.2, 13.0);
+      plazaShape.lineTo(-13.2, 13.0);
+      plazaShape.lineTo(-13.2, 5.5);
+      plazaShape.closePath();
+      const plazaGeo = new THREE.ExtrudeGeometry(plazaShape, { depth: 0.14, bevelEnabled: false });
+      const plaza = new THREE.Mesh(plazaGeo, M.pavingPlaza);
+      plaza.rotation.x = -Math.PI / 2;
+      plaza.position.set(0, -0.02, 9.0);
+      plaza.receiveShadow = true;
+      grp.add(plaza);
+
+      // Left & Right Natural Grass Courtyard Fields
+      function addGrassField(cx, w, zStart, zEnd) {
+        const len = zEnd - zStart;
+        const cz = (zStart + zEnd) / 2;
+        const field = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, len), M.grass);
+        field.position.set(cx, 0.02, cz);
+        field.receiveShadow = true;
+        grp.add(field);
+        // Pale cream-green perimeter curb
+        addBox(grp, w + 0.3, 0.18, 0.24, M.creamCurb, cx, 0.09, zStart, false, true);
+        addBox(grp, w + 0.3, 0.18, 0.24, M.creamCurb, cx, 0.09, zEnd, false, true);
+        addBox(grp, 0.24, 0.18, len, M.creamCurb, cx - w / 2, 0.09, cz, false, true);
+        addBox(grp, 0.24, 0.18, len, M.creamCurb, cx + w / 2, 0.09, cz, false, true);
+      }
+      addGrassField(-16.2, 22.8, 9.2, 35.8);
+      addGrassField(16.2, 22.8, 9.2, 35.8);
+
+      // Mini Futsal Goals on the Grass Fields
+      function addFutsalGoal(x, z, rotY) {
+        const fg = new THREE.Group();
+        fg.position.set(x, 0.08, z);
+        fg.rotation.y = rotY;
+        const postMat = M.whiteWall;
+        addBox(fg, 0.08, 1.95, 0.08, postMat, -1.45, 0.975, 0);
+        addBox(fg, 0.08, 1.95, 0.08, postMat, 1.45, 0.975, 0);
+        addBox(fg, 2.98, 0.08, 0.08, postMat, 0, 1.95, 0);
+        addBox(fg, 0.06, 0.06, 0.95, postMat, -1.45, 0.03, -0.48, false, false);
+        addBox(fg, 0.06, 0.06, 0.95, postMat, 1.45, 0.03, -0.48, false, false);
+        addBox(fg, 2.96, 0.06, 0.06, postMat, 0, 0.03, -0.95, false, false);
+        const netMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.42 });
+        const backNet = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 1.9, 12, 8), netMat);
+        backNet.position.set(0, 0.95, -0.92);
+        fg.add(backNet);
+        grp.add(fg);
+      }
+      addFutsalGoal(-25.8, 22.5, Math.PI / 2);
+      addFutsalGoal(25.8, 22.5, -Math.PI / 2);
+
+      // "TITIK KUMPUL / EVACUATION POINT" Signpost
+      const tkGrp = new THREE.Group();
+      tkGrp.position.set(-5.2, 0.08, 21.5);
+      addBox(tkGrp, 0.09, 2.45, 0.09, M.ironBlack, 0, 1.225, 0);
+      const tkTex = TextureFactory.createSignageTexture([
+        { text: 'TITIK KUMPUL', y: 74, font: '900 66px Inter, sans-serif', color: '#ffffff' },
+        { text: 'EVACUATION POINT', y: 150, font: '700 40px Inter, sans-serif', color: '#bbf7d0' }
+      ], { width: 768, height: 224, bg: '#14532d', border: '#ffffff', borderWidth: 10 });
+      const tkBoard = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.56, 0.06), new THREE.MeshStandardMaterial({ map: tkTex }));
+      tkBoard.position.set(0, 2.25, 0);
+      tkGrp.add(tkBoard);
+      grp.add(tkGrp);
+
+      // --- ICONIC MAIN FLAGPOLE (X = 0, Z = 4.6) ---
+      const fp = new THREE.Group();
+      fp.position.set(0, 0.12, 4.6);
+
+      // Carved White Concrete Pedestal with Green Lotus Base Relief
+      addBox(fp, 1.48, 0.24, 1.48, M.creamCurb, 0, 0.12, 0);
+      const lotusBase = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.68, 0.34, 12), M.darkWallTile);
+      lotusBase.position.y = 0.40;
+      fp.add(lotusBase);
+
+      // Carved lotus petals around pedestal base
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const pet = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.32, 4), M.whiteWall);
+        pet.position.set(Math.cos(a) * 0.54, 0.42, Math.sin(a) * 0.54);
+        pet.rotation.y = -a;
+        fp.add(pet);
+      }
+
+      // Fluted White Cylinder Column (1.8m)
+      const fluted = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 1.75, 16), M.whiteWall);
+      fluted.position.y = 1.40;
+      fluted.castShadow = true;
+      fp.add(fluted);
+      const colCap = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.35, 0.18, 16), M.whiteWall);
+      colCap.position.y = 2.34;
+      fp.add(colCap);
+
+      // Tall White Pole (13m) & Golden Finial Orb
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.11, 13.0, 12), M.whiteWall);
+      pole.position.y = 8.9;
+      pole.castShadow = true;
+      fp.add(pole);
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), M.goldMetal);
+      finial.position.y = 15.5;
+      fp.add(finial);
+
+      // Dynamic Vertex-Animated Indonesian Red-White Flag (28x16 segments)
+      const flagW = 2.8, flagH = 1.85;
+      const fCanvas = document.createElement('canvas');
+      fCanvas.width = 256; fCanvas.height = 170;
+      const fCtx = fCanvas.getContext('2d');
+      fCtx.fillStyle = '#dc1c22';
+      fCtx.fillRect(0, 0, 256, 85);
+      fCtx.fillStyle = '#f8fafc';
+      fCtx.fillRect(0, 85, 256, 85);
+      const flagTex = new THREE.CanvasTexture(fCanvas);
+      flagTex.colorSpace = THREE.SRGBColorSpace;
+
+      const flagGeo = new THREE.PlaneGeometry(flagW, flagH, 28, 16);
+      flagGeo.translate(flagW / 2 + 0.06, 0, 0);
+      flagBasePos = Float32Array.from(flagGeo.attributes.position.array);
+
+      flagMesh = new THREE.Mesh(
+        flagGeo,
+        new THREE.MeshStandardMaterial({ map: flagTex, roughness: 0.65, side: THREE.DoubleSide })
+      );
+      flagMesh.position.set(0, 14.35, 0);
+      flagMesh.castShadow = true;
+      fp.add(flagMesh);
+      grp.add(fp);
+
+      scene.add(grp);
+    }
+
+    // --- ZONA 4: ICONIC 2-STORY MAIN BUILDING (T-SHAPED ROOF + WALKABLE LOBBY & TROPHY GALLERY) ---
+    function buildZone4MainBuilding() {
+      const grp = new THREE.Group();
+      grp.position.set(0, 0, -10.5);
+
+      const mainW = 44.0;
+      const mainD = 12.6;
+      const flH = 4.4;
+      const totalH = flH * 2 + 0.65;
+
+      // Ground Podium & 3-Step Front Entrance Stairs
+      addBox(grp, mainW + 1.4, 0.45, mainD + 2.2, M.lobbyGranite, 0, 0.225, 0.4, false, true);
+      addBox(grp, 12.6, 0.15, 0.48, M.creamCurb, 0, 0.075, 11.45, false, true);
+      addBox(grp, 12.6, 0.30, 0.48, M.creamCurb, 0, 0.15, 11.0, false, true);
+      addBox(grp, 12.6, 0.45, 4.9, M.lobbyGranite, 0, 0.225, 8.4, false, true);
+
+      // Left & Right Main 2-Story Wings (leaving central 9.4m Lobby Open Through-Hall)
+      for (const side of [-1, 1]) {
+        const wx = side * 13.35;
+        // Ground Floor Wall (Recessed behind front veranda)
+        addBox(grp, 17.3, flH, mainD - 1.2, M.wallPastelGreen, wx, 0.45 + flH / 2, -0.4);
+        addBox(grp, 17.34, 1.15, mainD - 1.16, M.darkWallTile, wx, 0.45 + 0.575, -0.4, false, true);
+        // 2nd Floor Wall
+        addBox(grp, 17.3, flH, mainD - 0.8, M.wallPastelGreen, wx, 0.45 + flH + flH / 2, -0.2);
+
+        // Front Veranda Dark-Green Pillars & Horizontal Orange + Gold Fascia Bands
+        for (let i = 0; i < 4; i++) {
+          const px = side * (6.8 + i * 4.95);
+          addBox(grp, 0.44, totalH, 0.44, M.darkGreen, px, 0.45 + totalH / 2, mainD / 2 + 0.45);
+        }
+        // Horizontal Orange Band + Gold Top Trim between Floor 1 & 2
+        addBox(grp, 17.6, 0.56, 0.42, M.orangeBand, wx, 0.45 + flH, mainD / 2 + 0.52);
+        addBox(grp, 17.64, 0.12, 0.46, M.goldTrim, wx, 0.45 + flH + 0.32, mainD / 2 + 0.52);
+        // Roofline Orange Band + Gold Trim
+        addBox(grp, 17.8, 0.52, 0.44, M.orangeBand, wx, 0.45 + totalH - 0.15, mainD / 2 + 0.55);
+        addBox(grp, 17.84, 0.12, 0.48, M.goldTrim, wx, 0.45 + totalH + 0.15, mainD / 2 + 0.55);
+
+        // Recessed Dark Windows & Outdoor AC Units on Floor 1 & 2
+        for (let b = 0; b < 3; b++) {
+          const bx = side * (9.2 + b * 4.95);
+          const w1 = createRecessedWindow(2.65, 1.65, 3, true, false);
+          w1.position.set(bx, 0.45 + 2.15, mainD / 2 - 0.98);
+          grp.add(w1);
+
+          const w2 = createRecessedWindow(2.65, 1.65, 3, true, false);
+          w2.position.set(bx, 0.45 + flH + 2.2, mainD / 2 - 0.58);
+          grp.add(w2);
+
+          if (b < 2) {
+            const ac = createACUnit();
+            ac.position.set(bx + side * 0.9, 0.45 + flH + 0.65, mainD / 2 - 0.56);
+            grp.add(ac);
+          }
+        }
+      }
+
+      // Upper 2nd-Floor Structural Slab above Central Open Lobby
+      addBox(grp, 9.6, 0.35, mainD, M.whiteWall, 0, 0.45 + flH, 0);
+      addBox(grp, 9.6, flH, mainD - 2.6, M.wallPastelGreen, 0, 0.45 + flH + flH / 2, -1.2);
+
+      // --- PROJECTING CENTRAL PORTICO / CANOPY (4.5m Forward Projection) ---
+      const portZ = mainD / 2 + 4.3;
+      const portPillarX = [-5.8, -2.2, 2.2, 5.8];
+
+      portPillarX.forEach(px => {
+        // Matte-Black Plinth Box with Bright Orange Vertical Side Panels
+        addBox(grp, 0.88, 1.18, 0.88, M.matteBlack, px, 0.45 + 0.59, portZ);
+        addBox(grp, 0.52, 0.82, 0.92, M.orangeBand, px, 0.45 + 0.62, portZ, false, true);
+        addBox(grp, 0.92, 0.82, 0.52, M.orangeBand, px, 0.45 + 0.62, portZ, false, true);
+
+        // Tall Dark Green Main Pillar + Front Bright Orange Vertical Accent Strip
+        addBox(grp, 0.58, totalH - 1.1, 0.58, M.darkGreen, px, 0.45 + 1.18 + (totalH - 1.1) / 2, portZ);
+        addBox(grp, 0.14, totalH - 1.15, 0.62, M.orangeBand, px, 0.45 + 1.18 + (totalH - 1.1) / 2, portZ, false, false);
+      });
+
+      // Portico 2nd-Floor Balcony Slab & Orange-Gold Fascia Beam
+      addBox(grp, 13.0, 0.36, 4.9, M.whiteWall, 0, 0.45 + flH - 0.1, mainD / 2 + 2.25);
+      addBox(grp, 13.4, 0.64, 0.46, M.orangeBand, 0, 0.45 + flH, portZ + 0.16);
+      addBox(grp, 13.44, 0.12, 0.50, M.goldTrim, 0, 0.45 + flH + 0.36, portZ + 0.16);
+
+      // Balcony Parapet Wall with 5 Vertical Ventilation Slots per Segment
+      for (const [segStart, segEnd] of [[-5.4, -2.6], [-1.8, 1.8], [2.6, 5.4]]) {
+        const segW = segEnd - segStart;
+        const segCx = (segStart + segEnd) / 2;
+        addBox(grp, segW, 1.12, 0.24, M.wallPastelGreen, segCx, 0.45 + flH + 0.92, portZ);
+        addBox(grp, segW + 0.1, 0.14, 0.30, M.darkGreen, segCx, 0.45 + flH + 1.52, portZ);
+        for (let s = 0; s < 5; s++) {
+          const sx = segStart + ((s + 0.5) / 5) * segW;
+          addBox(grp, 0.14, 0.68, 0.28, M.matteBlack, sx, 0.45 + flH + 0.95, portZ, false, false);
+        }
+      }
+
+      // Iconic Main Green Signboard with Raised Bright Red 3D Letters: "SMAN 1 KLATEN"
+      const mainSignTex = TextureFactory.createSignageTexture(
+        [{ text: 'SMAN 1 KLATEN', y: 128, font: '900 116px Inter, sans-serif', color: '#ef1d24', shadow: true }],
+        { width: 1024, height: 256, bg: '#22a35a', border: '#14532d', borderWidth: 14 }
+      );
+      const mainSign = new THREE.Mesh(
+        new THREE.BoxGeometry(5.65, 1.05, 0.22),
+        new THREE.MeshStandardMaterial({ map: mainSignTex, roughness: 0.34 })
+      );
+      mainSign.position.set(0, 0.45 + flH + 0.72, portZ + 0.38);
+      mainSign.castShadow = true;
+      grp.add(mainSign);
+
+      // Portico Upper Roofline Canopy Beam (Orange + Gold Top Border)
+      addBox(grp, 14.2, 0.58, 5.5, M.whiteWall, 0, 0.45 + totalH - 0.1, mainD / 2 + 2.4);
+      addBox(grp, 14.4, 0.62, 0.48, M.orangeBand, 0, 0.45 + totalH - 0.05, portZ + 0.55);
+      addBox(grp, 14.46, 0.14, 0.52, M.goldTrim, 0, 0.45 + totalH + 0.32, portZ + 0.55);
+
+      // Main Building Large Hipped Clay-Tile Roof + Portico Hip Roof + Rear T-Wing Roof (matching Satellite Map)
+      const mainRoof = createHipRoof(mainW + 1.0, mainD + 1.4, 4.45, 1.0);
+      mainRoof.position.set(0, 0.45 + totalH + 0.2, 0);
+      grp.add(mainRoof);
+
+      const porticoRoof = createHipRoof(14.4, 6.4, 2.35, 0.75);
+      porticoRoof.position.set(0, 0.45 + totalH + 0.22, mainD / 2 + 2.45);
+      grp.add(porticoRoof);
+
+      // Rear T-Extension Block & Roof (Center North projection matching satellite pin)
+      addBox(grp, 12.4, totalH, 6.2, M.wallPastelGreen, 0, 0.45 + totalH / 2, -mainD / 2 - 3.0);
+      const tRearRoof = createHipRoof(13.0, 7.0, 2.85, 0.85);
+      tRearRoof.position.set(0, 0.45 + totalH + 0.2, -mainD / 2 - 3.0);
+      grp.add(tRearRoof);
+
+      // --- LOBBY ENTRANCE FACADE: WHITE VERTICAL LOUVERS & ANIMATED LED RUNNING TEXT ---
+      for (const side of [-1, 1]) {
+        const lx = side * 3.55;
+        addBox(grp, 1.75, 2.75, 0.16, M.matteBlack, lx, 0.45 + 1.52, mainD / 2 - 0.15, false, false);
+        for (let slat = 0; slat < 5; slat++) {
+          const sx = lx - 0.68 + slat * 0.34;
+          addBox(grp, 0.11, 2.65, 0.24, M.whiteWall, sx, 0.45 + 1.52, mainD / 2 - 0.08);
+        }
+      }
+
+      // LED Running Text Board above Main Glass Lobby Doors
+      const ledC = document.createElement('canvas');
+      ledC.width = 1024; ledC.height = 128;
+      ledCanvasCtx = ledC.getContext('2d');
+      ledTexture = new THREE.CanvasTexture(ledC);
+      ledTexture.colorSpace = THREE.SRGBColorSpace;
+      const ledBoard = new THREE.Mesh(
+        new THREE.BoxGeometry(4.6, 0.58, 0.18),
+        new THREE.MeshStandardMaterial({
+          map: ledTexture,
+          emissiveMap: ledTexture,
+          emissive: 0x22ff66,
+          emissiveIntensity: 1.45,
+          roughness: 0.22
+        })
+      );
+      ledBoard.position.set(0, 0.45 + 3.45, mainD / 2 + 0.05);
+      grp.add(ledBoard);
+
+      // --- WALKABLE INTERIOR MAIN LOBBY (TROPHY GALLERY, RECEPTION & RUANG GURU SIGN) ---
+      // Polished Lobby Floor with Green Center Accent Stripes
+      addBox(grp, 9.6, 0.04, mainD + 0.4, M.lobbyGranite, 0, 0.47, 0, false, true);
+      addBox(grp, 0.38, 0.05, mainD + 0.4, M.greenTileCorr, -2.8, 0.475, 0, false, true);
+      addBox(grp, 0.38, 0.05, mainD + 0.4, M.greenTileCorr, 2.8, 0.475, 0, false, true);
+
+      // Reception Counter (Blue-White Front Desk)
+      addBox(grp, 2.4, 0.98, 0.72, M.whiteWall, -2.55, 0.96, 3.6);
+      addBox(grp, 2.44, 0.14, 0.78, new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.35 }), -2.55, 1.44, 3.6);
+
+      // Illuminated Glass Display Cabinets filled with Gleaming Gold & Silver Trophies
+      for (const side of [-1, 1]) {
+        const cx = side * 4.35;
+        addBox(grp, 0.65, 2.65, 6.8, M.matteBlack, cx, 1.78, -0.4);
+        addBox(grp, 0.06, 2.45, 6.6, M.clearGlass, cx - side * 0.34, 1.78, -0.4, false, false);
+        // 3 Trophy Shelves with Rows of Gold & Silver Cups
+        for (let sh = 0; sh < 3; sh++) {
+          const sy = 1.05 + sh * 0.72;
+          addBox(grp, 0.56, 0.05, 6.5, M.whiteWall, cx, sy, -0.4, false, false);
+          for (let t = 0; t < 11; t++) {
+            const tz = -3.3 + t * 0.58;
+            const cupMat = (t + sh) % 3 === 0 ? M.chrome : M.goldMetal;
+            const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.05, 0.32 + (t % 2) * 0.08, 8), cupMat);
+            cup.position.set(cx - side * 0.04, sy + 0.20, tz);
+            grp.add(cup);
+          }
+        }
+      }
+
+      // Stainless Waiting Benches & RUANG GURU Sign
+      addBox(grp, 0.52, 0.08, 2.4, M.chrome, 3.45, 0.92, 3.8);
+      const rgTex = TextureFactory.createSignageTexture(
+        [{ text: 'RUANG GURU', y: 64, font: '800 54px Inter, sans-serif', color: '#ffffff' }],
+        { width: 384, height: 128, bg: '#14532d', border: '#f5c518', borderWidth: 8 }
+      );
+      const rgSign = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.95), new THREE.MeshStandardMaterial({ map: rgTex }));
+      rgSign.position.set(-4.35, 3.15, -4.6);
+      grp.add(rgSign);
+
+      // Lobby Ceiling Lamps & Warm Evening Light
+      addCeilingLampFixture(grp, 0, 4.42, 3.0);
+      addCeilingLampFixture(grp, 0, 4.42, -2.5);
+      addPracticalLight(0, 3.9, -8.5, 0xfff0d4, 14, 20);
+      addPracticalLight(0, 3.9, -15.5, 0xfff0d4, 10, 18);
+
+      // Andesite Stone Ganesha Statue at Front-East Veranda Corner
+      const ganesha = createGaneshaStatue();
+      ganesha.position.set(6.8, 0.45, mainD / 2 + 1.25);
+      grp.add(ganesha);
+
+      scene.add(grp);
+    }
+
+    // --- ZONA 5: U-WINGS (UKS/BK/KOPERASI & KELAS 10), PERPUSTAKAAN, PERGOLA, MURALS & PROTRUDING NW MOSQUE ---
+    function buildZone5WingsAndMosque() {
+      const grp = new THREE.Group();
+
+      // Modular Classroom Wing Builder
+      function buildClassroomWing(opts) {
+        const {
+          x, z, length, floors, facing,
+          depthScale = 1.0,
+          hasLibrary = false,
+          hasTruntumN = false,
+          hasSindhuSouth = false,
+          specialWestU = false,
+          roomLabels = [],
+          binLabels = []
+        } = opts;
+
+        const w = new THREE.Group();
+        w.position.set(x, 0, z);
+        if (facing === 'east') w.rotation.y = Math.PI / 2;
+        else if (facing === 'west') w.rotation.y = -Math.PI / 2;
+        else if (facing === 'north') w.rotation.y = Math.PI;
+
+        const bodyD = 7.4 * depthScale;
+        const corrD = 2.35;
+        const flH = 3.85;
+        const totalH = floors * flH;
+        const bays = Math.max(2, Math.round(length / 5.8));
+        const bayW = length / bays;
+
+        // Ground Floor Slab + Glossy Green Ceramic Corridor + Concrete Drainage Gutter
+        addBox(w, length, 0.32, bodyD, M.lobbyGranite, 0, 0.16, -corrD / 2, false, true);
+        addBox(w, length, 0.32, corrD, M.greenTileCorr, 0, 0.16, bodyD / 2, false, true);
+        addBox(w, length, 0.14, 0.42, M.concrete, 0, 0.07, bodyD / 2 + corrD / 2 + 0.22, false, true);
+
+        // Main Classroom Body Walls (Lower Dark-Green Dado Tile + Upper Pastel Green)
+        addBox(w, length, 1.22, bodyD, M.darkWallTile, 0, 0.32 + 0.61, -corrD / 2, true, true);
+        addBox(w, length, totalH - 1.22, bodyD, M.wallPastelGreen, 0, 0.32 + 1.22 + (totalH - 1.22) / 2, -corrD / 2, true, true);
+
+        // Corridor Floors, Dark-Green Pillars, 2nd-Floor Railings & Bays
+        for (let f = 0; f < floors; f++) {
+          const fy = 0.32 + f * flH;
+          if (f > 0) {
+            addBox(w, length, 0.24, corrD, M.greenTileCorr, 0, fy - 0.12, bodyD / 2, false, true);
+            addBox(w, length, 1.05, 0.18, M.wallPastelGreen, 0, fy + 0.52, bodyD / 2 + corrD / 2 - 0.1);
+            addBox(w, length, 0.12, 0.24, M.darkGreen, 0, fy + 1.08, bodyD / 2 + corrD / 2 - 0.1);
+          }
+
+          for (let b = 0; b <= bays; b++) {
+            const bx = -length / 2 + b * bayW;
+            addBox(w, 0.36, flH, 0.36, M.darkGreen, bx, fy + flH / 2, bodyD / 2 + corrD / 2 - 0.18);
+
+            if (b < bays) {
+              const midX = bx + bayW / 2;
+              const wallZ = bodyD / 2 - corrD / 2 + 0.02;
+
+              // Ceiling lamp fixture in corridor
+              addCeilingLampFixture(w, midX, fy + flH - 0.12, bodyD / 2);
+
+              // Skip bay occupied by exterior staircase on Gedung N
+              if (hasTruntumN && f === 0 && b === bays - 1) continue;
+
+              // SPECIALIZED LEFT U-WING: KOPERASI SISWA (bays 0-1), RUANG BK (bays 2-3), RUANG UKS (bays 4-5)
+              if (specialWestU && f === 0) {
+                if (b === 0 || b === 1) {
+                  // --- KOPERASI SISWA ---
+                  if (b === 0) {
+                    addBox(w, 2.75, 1.38, 0.16, M.darkGreen, midX + 0.45, fy + 1.85, wallZ);
+                    addBox(w, 2.55, 1.22, 0.08, M.matteBlack, midX + 0.45, fy + 1.85, wallZ - 0.04);
+                    addBox(w, 2.4, 0.06, 0.28, M.woodDoor, midX + 0.45, fy + 1.62, wallZ - 0.18);
+                    addBox(w, 2.4, 0.06, 0.28, M.woodDoor, midX + 0.45, fy + 2.04, wallZ - 0.18);
+                    for (let item = 0; item < 6; item++) {
+                      const itemCol = [0xef4444, 0xf59e0b, 0x3b82f6, 0x10b981][item % 4];
+                      addBox(w, 0.22, 0.26, 0.16, new THREE.MeshStandardMaterial({ color: itemCol, roughness: 0.45 }), midX - 0.5 + item * 0.38, fy + 1.78, wallZ - 0.16, false, false);
+                    }
+                    addBox(w, 2.85, 0.10, 0.56, M.woodDoor, midX + 0.45, fy + 1.15, wallZ + 0.22);
+                    const awning = new THREE.Mesh(new THREE.BoxGeometry(2.95, 0.08, 0.72), M.orangeACP);
+                    awning.position.set(midX + 0.45, fy + 2.68, wallZ + 0.34);
+                    awning.rotation.x = 0.26;
+                    awning.castShadow = true;
+                    w.add(awning);
+                    addBox(w, 1.02, 2.35, 0.12, M.darkGreen, midX - 1.72, fy + 1.18, wallZ);
+                    addBox(w, 0.86, 2.22, 0.14, M.woodDoor, midX - 1.72, fy + 1.16, wallZ);
+                  } else {
+                    const win = createRecessedWindow(2.5, 1.65, 3, true, false);
+                    win.position.set(midX + 0.55, fy + 2.02, wallZ);
+                    w.add(win);
+                    addBox(w, 1.02, 2.35, 0.12, M.darkGreen, midX - 1.45, fy + 1.18, wallZ);
+                    addBox(w, 0.86, 2.22, 0.14, M.woodDoor, midX - 1.45, fy + 1.16, wallZ);
+                    addBox(w, 1.85, 0.08, 0.45, M.woodDoor, midX + 0.55, fy + 0.46, wallZ + 0.55);
+                    addBox(w, 0.1, 0.42, 0.4, M.ironBlack, midX - 0.2, fy + 0.22, wallZ + 0.55);
+                    addBox(w, 0.1, 0.42, 0.4, M.ironBlack, midX + 1.3, fy + 0.22, wallZ + 0.55);
+                    const kopTex = TextureFactory.createSignageTexture([
+                      { text: 'KOPERASI SISWA', y: 82, font: '900 60px Inter, sans-serif', color: '#fde047', shadow: true },
+                      { text: 'SMAN 1 KLATEN', y: 158, font: '700 38px Inter, sans-serif', color: '#ffffff' }
+                    ], { width: 1024, height: 224, bg: '#166534', border: '#f5c518', borderWidth: 10 });
+                    const kopSign = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.82, 0.1), new THREE.MeshStandardMaterial({ map: kopTex }));
+                    kopSign.position.set(bx, fy + 3.22, bodyD / 2 + corrD / 2 - 0.05);
+                    w.add(kopSign);
+                  }
+                } else if (b === 2 || b === 3) {
+                  // --- RUANG BK ---
+                  const win = createRecessedWindow(2.4, 1.55, 3, true, true);
+                  win.position.set(midX + 0.6, fy + 2.05, wallZ);
+                  w.add(win);
+                  addBox(w, 1.12, 2.38, 0.12, M.darkGreen, midX - 1.45, fy + 1.19, wallZ);
+                  addBox(w, 0.94, 2.24, 0.14, M.woodDoor, midX - 1.45, fy + 1.16, wallZ);
+                  addBox(w, 0.52, 1.12, 0.16, M.clearGlass, midX - 1.45, fy + 1.52, wallZ, false, false);
+
+                  if (b === 2) {
+                    addBox(w, 1.45, 0.92, 0.1, M.woodDoor, midX + 0.6, fy + 1.65, wallZ + 0.12);
+                    const infoTex = TextureFactory.createSignageTexture([
+                      { text: 'INFO BK & KARIR', y: 60, font: '800 38px Inter, sans-serif', color: '#14532d' },
+                      { text: 'KONSULTASI SISWA', y: 130, font: '600 30px Inter, sans-serif', color: '#334155' }
+                    ], { width: 512, height: 224, bg: '#f8fafc', border: '#166534', borderWidth: 8 });
+                    const infoPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.32, 0.78), new THREE.MeshStandardMaterial({ map: infoTex }));
+                    infoPlane.position.set(midX + 0.6, fy + 1.65, wallZ + 0.18);
+                    w.add(infoPlane);
+                  } else {
+                    addBox(w, 1.9, 0.07, 0.48, M.chrome, midX + 0.6, fy + 0.45, wallZ + 0.55);
+                    addBox(w, 1.9, 0.45, 0.06, M.chrome, midX + 0.6, fy + 0.72, wallZ + 0.34);
+                    addBox(w, 0.08, 0.42, 0.42, M.ironBlack, midX - 0.15, fy + 0.22, wallZ + 0.55);
+                    addBox(w, 0.08, 0.42, 0.42, M.ironBlack, midX + 1.35, fy + 0.22, wallZ + 0.55);
+                    const bkTex = TextureFactory.createSignageTexture([
+                      { text: 'RUANG BK', y: 82, font: '900 66px Inter, sans-serif', color: '#ffffff', shadow: true },
+                      { text: 'BIMBINGAN & KONSELING', y: 158, font: '700 36px Inter, sans-serif', color: '#bbf7d0' }
+                    ], { width: 1024, height: 224, bg: '#14532d', border: '#34d399', borderWidth: 10 });
+                    const bkSign = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.82, 0.1), new THREE.MeshStandardMaterial({ map: bkTex }));
+                    bkSign.position.set(bx, fy + 3.22, bodyD / 2 + corrD / 2 - 0.05);
+                    w.add(bkSign);
+                  }
+                } else {
+                  // --- RUANG UKS ---
+                  const win = createRecessedWindow(2.4, 1.55, 3, true, false);
+                  win.position.set(midX + 0.6, fy + 2.05, wallZ);
+                  w.add(win);
+                  addBox(w, 1.06, 2.38, 0.12, M.darkGreen, midX - 1.45, fy + 1.19, wallZ);
+                  addBox(w, 0.90, 2.24, 0.14, M.whiteWall, midX - 1.45, fy + 1.16, wallZ);
+                  const crossMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 });
+                  addBox(w, 0.08, 0.34, 0.02, crossMat, midX - 1.45, fy + 1.62, wallZ + 0.08, false, false);
+                  addBox(w, 0.34, 0.08, 0.02, crossMat, midX - 1.45, fy + 1.62, wallZ + 0.08, false, false);
+
+                  if (b === 5) {
+                    const uksTex = TextureFactory.createSignageTexture([
+                      { text: 'RUANG UKS', y: 82, font: '900 66px Inter, sans-serif', color: '#dc2626', shadow: true },
+                      { text: 'UNIT KESEHATAN SEKOLAH', y: 158, font: '800 34px Inter, sans-serif', color: '#14532d' }
+                    ], { width: 1024, height: 224, bg: '#f8fafc', border: '#16a34a', borderWidth: 12, withRedCross: true });
+                    const uksSign = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.84, 0.1), new THREE.MeshStandardMaterial({ map: uksTex }));
+                    uksSign.position.set(bx, fy + 3.22, bodyD / 2 + corrD / 2 - 0.05);
+                    w.add(uksSign);
+                  }
+                }
+
+                if (b % 2 === 0) {
+                  const sink = createWastafel();
+                  sink.position.set(bx + 0.85, 0.32, bodyD / 2 + corrD / 2 - 0.25);
+                  sink.rotation.y = Math.PI;
+                  w.add(sink);
+                } else {
+                  const bin = createTrashBin(b !== 5);
+                  bin.position.set(bx + 0.55, 0.34, bodyD / 2 + corrD / 2 - 0.48);
+                  w.add(bin);
+                }
+                continue;
+              }
+
+              // Standard Classroom Bay
+              const win = createRecessedWindow(2.4, 1.55, 3, true, true);
+              win.position.set(midX + 0.6, fy + 2.05, wallZ);
+              w.add(win);
+
+              addBox(w, 1.02, 2.35, 0.12, M.darkGreen, midX - 1.45, fy + 1.18, wallZ);
+              addBox(w, 0.86, 2.22, 0.14, M.woodDoor, midX - 1.45, fy + 1.16, wallZ);
+
+              // Optional Room Nameplate Plaque (e.g., KELAS X-9 .. LAB BAHASA)
+              if (f === 0 && roomLabels.length > 0 && b < roomLabels.length) {
+                const rTex = TextureFactory.createSignageTexture(
+                  [{ text: roomLabels[b], y: 64, font: '800 46px Inter, sans-serif', color: '#ffffff' }],
+                  { width: 384, height: 128, bg: '#166534', border: '#f5c518', borderWidth: 8 }
+                );
+                const rSign = new THREE.Mesh(
+                  new THREE.BoxGeometry(1.12, 0.32, 0.05),
+                  new THREE.MeshStandardMaterial({ map: rTex, roughness: 0.4 })
+                );
+                rSign.position.set(midX - 1.45, fy + 2.66, wallZ + 0.08);
+                w.add(rSign);
+              }
+
+              if (f === 0) {
+                if (hasLibrary) {
+                  // Wooden shoe racks along Library wall & brown iron window grille
+                  const rack = createShoeRack();
+                  rack.position.set(midX + 0.65, 0.32, wallZ + 0.24);
+                  w.add(rack);
+                  for (let gBar = -3; gBar <= 3; gBar++) {
+                    addBox(w, 0.03, 1.58, 0.03, M.woodDoor, midX + 0.6 + gBar * 0.35, fy + 2.05, wallZ + 0.12, false, false);
+                  }
+                }
+                if (b % 2 === 0) {
+                  const sink = createWastafel();
+                  sink.position.set(bx + 0.85, 0.32, bodyD / 2 + corrD / 2 - 0.25);
+                  sink.rotation.y = Math.PI;
+                  w.add(sink);
+                } else {
+                  const binLbl = binLabels[b] || '';
+                  const bin = createTrashBin(b % 3 !== 0, binLbl);
+                  bin.position.set(bx + 0.55, 0.34, bodyD / 2 + corrD / 2 - 0.48);
+                  w.add(bin);
+                }
+              }
+            }
+          }
+        }
+
+        // Special Overlay: PERPUSTAKAAN PADMA WIJAYA
+        if (hasLibrary) {
+          const libTex = TextureFactory.createSignageTexture([
+            { text: 'PERPUSTAKAAN PADMA WIJAYA', y: 78, font: '900 48px Inter, sans-serif', color: '#dc2626', shadow: true },
+            { text: 'SMAN 1 KLATEN', y: 152, font: '800 42px Inter, sans-serif', color: '#14532d' }
+          ], { width: 1024, height: 224, bg: '#4ade80', border: '#166534', borderWidth: 10, withLogo: true });
+          const libSign = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.92, 0.10), new THREE.MeshStandardMaterial({ map: libTex }));
+          libSign.position.set(0, 3.25, bodyD / 2 - corrD / 2 + 0.12);
+          w.add(libSign);
+
+          // Small "BUKA" plaque on library door
+          const bukaTex = TextureFactory.createSignageTexture(
+            [{ text: 'BUKA', y: 64, font: '900 58px Inter, sans-serif', color: '#166534' }],
+            { width: 256, height: 128, bg: '#fef08a', border: '#ca8a04', borderWidth: 8 }
+          );
+          const bukaSign = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.24), new THREE.MeshStandardMaterial({ map: bukaTex }));
+          bukaSign.position.set(-1.45, 1.88, bodyD / 2 - corrD / 2 + 0.14);
+          w.add(bukaSign);
+        }
+
+        // Special Overlay: GEDUNG N + Exterior Stairs + TRUNTUM Batik Mural
+        if (hasTruntumN) {
+          // Red "N" Square Emblem on 2nd-floor Corridor Beam
+          const nTex = TextureFactory.createSignageTexture(
+            [{ text: 'N', y: 128, font: '900 180px Inter, sans-serif', color: '#dc2626' }],
+            { width: 256, height: 256, bg: '#f8fafc', border: '#dc2626', borderWidth: 14 }
+          );
+          const nSign = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.92, 0.10), new THREE.MeshStandardMaterial({ map: nTex }));
+          nSign.position.set(0, 4.45, bodyD / 2 + corrD / 2 - 0.04);
+          w.add(nSign);
+
+          // Exterior Staircase at Right Bay
+          const stairX = length / 2 - bayW * 0.5;
+          for (let st = 0; st < 12; st++) {
+            addBox(w, 1.65, 0.24, 0.34, M.concrete, stairX, 0.45 + st * 0.31, bodyD / 2 - 1.2 + st * 0.24, false, true);
+          }
+
+          // TRUNTUM Batik Mural Wall Panel right beside stairs
+          const truntumMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(4.6, 2.3),
+            new THREE.MeshStandardMaterial({ map: TextureFactory.createTruntumMuralTexture(), roughness: 0.68 })
+          );
+          truntumMesh.position.set(length / 2 - 2.4, 1.68, bodyD / 2 + corrD / 2 + 0.04);
+          w.add(truntumMesh);
+        }
+
+        // Special Overlay: SINDHU MLATHI Art Mural + Concrete Garden Table & Stools
+        if (hasSindhuSouth) {
+          const sindhuMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(4.6, 2.3),
+            new THREE.MeshStandardMaterial({ map: TextureFactory.createSindhuMlathiMuralTexture(), roughness: 0.65 })
+          );
+          sindhuMesh.position.set(-2.2, 1.85, bodyD / 2 - corrD / 2 + 0.12);
+          w.add(sindhuMesh);
+
+          // Concrete garden table & 2 stools in front of mural
+          addBox(w, 1.35, 0.10, 0.85, M.creamCurb, -2.2, 0.92, bodyD / 2 + 2.4);
+          addBox(w, 0.28, 0.72, 0.28, M.creamCurb, -2.2, 0.48, bodyD / 2 + 2.4);
+          addBox(w, 0.42, 0.48, 0.42, M.creamCurb, -3.15, 0.36, bodyD / 2 + 2.4);
+          addBox(w, 0.42, 0.48, 0.42, M.creamCurb, -1.25, 0.36, bodyD / 2 + 2.4);
+        }
+
+        // Hipped Clay-Tile Roof covering Classroom Body & Corridor
+        const roof = createHipRoof(length + 0.8, bodyD + corrD + 0.8, floors > 1 ? 2.95 : 2.45, 0.8);
+        roof.position.set(0, 0.32 + totalH, 0.15);
+        w.add(roof);
+
+        grp.add(w);
+        return w;
+      }
+
+      // === 1. FRONT COURTYARD U-WINGS (Joining South Building cleanly at SW & SE corners) ===
+      // Left U-Wing (West): KOPERASI SISWA, RUANG BK & RUANG UKS
+      buildClassroomWing({
+        x: -34.2, z: 24.8, length: 35.5, floors: 1, facing: 'east',
+        specialWestU: true
+      });
+      // Right U-Wing (East): Kelas 10 Classrooms (KELAS X-9 s/d X-12 + RUANG OSIS & LAB BAHASA)
+      buildClassroomWing({
+        x: 33.4, z: 24.8, length: 35.5, floors: 1, facing: 'west', depthScale: 1.18,
+        roomLabels: ['KELAS X-9', 'KELAS X-10', 'KELAS X-11', 'KELAS X-12', 'RUANG OSIS', 'LAB BAHASA'],
+        binLabels: ['X-9', 'X-10', 'X-11', 'X-12', 'OSIS', 'LAB']
+      });
+
+      // === 2. MIDDLE FLANKING WINGS (West & East of Main Building) ===
+      buildClassroomWing({
+        x: -33.2, z: -13.0, length: 31.0, floors: 2, facing: 'east'
+      });
+      buildClassroomWing({
+        x: 33.4, z: -14.5, length: 30.0, floors: 2, facing: 'west', depthScale: 1.05
+      });
+
+      // === 3. INNER REAR COURTYARD BLOCKS (Perpustakaan Padma Wijaya + Sindhu Mlathi + Pergola) ===
+      // East Inner Block: PERPUSTAKAAN PADMA WIJAYA facing West toward the curved pergola garden
+      buildClassroomWing({
+        x: 15.8, z: -22.2, length: 16.5, floors: 1, facing: 'west', depthScale: 0.88,
+        hasLibrary: true
+      });
+      // West Inner Block: SINDHU MLATHI Mural facing East-South garden
+      buildClassroomWing({
+        x: -14.2, z: -22.2, length: 14.5, floors: 1, facing: 'south', depthScale: 0.88,
+        hasSindhuSouth: true
+      });
+
+      // Curved Vine-Covered Pergola Walkway (Selasar Pergola) from Main Building Rear Veranda to Library & North Row
+      const pergolaPts = [
+        new THREE.Vector3(0, 0, -17.5),
+        new THREE.Vector3(3.2, 0, -19.2),
+        new THREE.Vector3(6.8, 0, -21.2),
+        new THREE.Vector3(8.6, 0, -24.8),
+        new THREE.Vector3(8.6, 0, -29.2)
+      ];
+      const pergolaCurve = new THREE.CatmullRomCurve3(pergolaPts);
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x265c2e, roughness: 0.82 });
+
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        const pt = pergolaCurve.getPoint(t);
+        const tan = pergolaCurve.getTangent(t);
+        const ang = Math.atan2(tan.x, tan.z);
+
+        const arch = new THREE.Group();
+        arch.position.copy(pt);
+        arch.rotation.y = ang;
+
+        // Flagstone paver under pergola
+        addBox(arch, 2.25, 0.08, 1.65, M.stoneWall, 0, 0.04, 0, false, true);
+        // Green iron arch posts
+        const pL = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 2.65, 8), M.ironGreen);
+        pL.position.set(-1.12, 1.325, 0);
+        const pR = pL.clone();
+        pR.position.x = 1.12;
+        arch.add(pL, pR);
+
+        // Curved hoop top + dark translucent roof sheet + vine leaf clusters
+        const hoop = new THREE.Mesh(new THREE.TorusGeometry(1.12, 0.045, 6, 14, Math.PI), M.ironGreen);
+        hoop.position.set(0, 2.65, 0);
+        arch.add(hoop);
+
+        const cover = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.05, 1.7), M.canopyWhite);
+        cover.position.set(0, 3.22, 0);
+        arch.add(cover);
+
+        // Hanging creeping vine foliage
+        for (let lf = 0; lf < 3; lf++) {
+          const v = new THREE.Mesh(new THREE.DodecahedronGeometry(0.32, 0), leafMat);
+          v.scale.set(1.2, 0.45, 1.1);
+          v.position.set(-0.7 + lf * 0.7, 3.35 + (lf % 2) * 0.1, (i % 2 ? 0.2 : -0.2));
+          arch.add(v);
+        }
+        grp.add(arch);
+      }
+
+      // === 4. MID-NORTH CLASSROOM ROW (Gedung N + Mural TRUNTUM & Corridor XII B-E) ===
+      buildClassroomWing({
+        x: -11.5, z: -34.2, length: 24.5, floors: 2, facing: 'south', depthScale: 0.95,
+        hasTruntumN: true,
+        binLabels: ['XII B', 'XII C', 'XII D', 'XII E']
+      });
+      buildClassroomWing({
+        x: 19.5, z: -34.2, length: 24.0, floors: 2, facing: 'south', depthScale: 0.92,
+        binLabels: ['XI A', 'XI B', 'XI C', 'XI D']
+      });
+
+      // === 5. NORTHERN INNER AVENUE & WHITE CORRUGATED CANOPY CONNECTOR ===
+      addBox(grp, 74.0, 0.06, 5.2, M.pavingPlaza, 2.0, 0.03, -41.5, false, true);
+      addBox(grp, 16.5, 0.10, 3.6, M.canopyWhite, 24.0, 3.45, -41.2);
+      for (const cx of [16.5, 22.0, 27.5, 31.8]) {
+        addBox(grp, 0.14, 3.45, 0.14, M.chrome, cx, 1.725, -42.8);
+        addBox(grp, 0.14, 3.45, 0.14, M.chrome, cx, 1.725, -39.6);
+      }
+
+      // === 6. PROTRUDING NORTH-WEST MOSQUE (MASJID SMAN 1 KLATEN — AGAK MENJOROK KE LUAR) ===
+      function buildSchoolMosque() {
+        const m = new THREE.Group();
+        m.position.set(-46.8, 0, -49.2);
+
+        const hallW = 13.6;  // X span: -53.6 to -40.0
+        const hallD = 13.2;  // Z span: -55.8 to -42.6
+        const hallH = 5.4;
+
+        // Elevated Granite Podium + East Entrance Veranda (Serambi facing +X toward school)
+        addBox(m, hallW + 3.4, 0.56, hallD + 2.2, M.lobbyGranite, 1.3, 0.28, 0, false, true);
+        addBox(m, 1.2, 0.28, 6.2, M.creamCurb, hallW / 2 + 3.3, 0.14, 0, false, true);
+        addBox(m, 0.7, 0.44, 6.0, M.creamCurb, hallW / 2 + 2.95, 0.22, 0, false, true);
+
+        // Main Prayer Hall Walls (Clean White & Emerald Green Lower Dado + Gold Band)
+        addBox(m, hallW, 1.15, hallD, M.darkWallTile, 0, 0.56 + 0.575, 0);
+        addBox(m, hallW, hallH - 1.15, hallD, M.whiteWall, 0, 0.56 + 1.15 + (hallH - 1.15) / 2, 0);
+        addBox(m, hallW + 0.35, 0.34, hallD + 0.35, M.darkGreen, 0, 0.56 + hallH + 0.12, 0);
+        addBox(m, hallW + 0.42, 0.10, hallD + 0.42, M.goldTrim, 0, 0.56 + hallH - 0.12, 0);
+
+        // Protruding West Mihrab (Qibla Niche facing West, jutting out to X = -55.6)
+        addBox(m, 2.2, 4.5, 4.4, M.whiteWall, -hallW / 2 - 1.0, 0.56 + 2.25, 0);
+        addBox(m, 2.35, 1.15, 4.55, M.darkWallTile, -hallW / 2 - 1.0, 0.56 + 0.575, 0);
+        addBox(m, 2.45, 0.24, 4.65, M.darkGreen, -hallW / 2 - 1.0, 0.56 + 4.55, 0);
+        const mihrabRoof = createHipRoof(2.8, 4.8, 1.25, 0.35);
+        mihrabRoof.position.set(-hallW / 2 - 1.0, 0.56 + 4.66, 0);
+        m.add(mihrabRoof);
+
+        // Islamic Pointed-Arch Windows with Gold Lattice Bars
+        function addMosqueArchWindow(px, pz, rotY) {
+          const wg = new THREE.Group();
+          wg.position.set(px, 0.56 + 2.55, pz);
+          wg.rotation.y = rotY;
+          addBox(wg, 1.48, 2.25, 0.18, M.darkGreen, 0, 0, 0, false, false);
+          const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.26, 2.02), M.windowGlass);
+          glass.position.z = 0.04;
+          wg.add(glass);
+          addBox(wg, 0.05, 2.0, 0.06, M.goldTrim, 0, 0, 0.07, false, false);
+          addBox(wg, 1.24, 0.05, 0.06, M.goldTrim, 0, 0.38, 0.07, false, false);
+          const archCap = new THREE.Mesh(new THREE.TorusGeometry(0.68, 0.09, 8, 14, Math.PI), M.darkGreen);
+          archCap.position.set(0, 1.08, 0.05);
+          wg.add(archCap);
+          m.add(wg);
+        }
+        for (const wx of [-4.0, 0, 4.0]) {
+          addMosqueArchWindow(wx, hallD / 2 + 0.05, 0);
+          addMosqueArchWindow(wx, -hallD / 2 - 0.05, Math.PI);
+        }
+        for (const wz of [-3.8, 3.8]) {
+          addMosqueArchWindow(-hallW / 2 - 0.05, wz, -Math.PI / 2);
+        }
+
+        // East Entrance Serambi (Open Veranda Columns & Carved Double Door)
+        const serambiX = hallW / 2 + 2.6;
+        for (const cz of [-6.0, -2.4, 2.4, 6.0]) {
+          addBox(m, 0.56, 0.72, 0.56, M.darkWallTile, serambiX, 0.56 + 0.36, cz);
+          addBox(m, 0.42, 4.15, 0.42, M.whiteWall, serambiX, 0.56 + 2.6, cz);
+          addBox(m, 0.48, 0.14, 0.48, M.goldTrim, serambiX, 0.56 + 4.45, cz);
+        }
+        addBox(m, 3.2, 0.36, hallD + 0.8, M.darkGreen, hallW / 2 + 1.4, 0.56 + 4.78, 0);
+        addBox(m, 3.3, 0.1, hallD + 0.9, M.goldTrim, hallW / 2 + 1.4, 0.56 + 4.98, 0);
+        const serambiRoof = createHipRoof(3.4, hallD + 1.2, 1.35, 0.5);
+        serambiRoof.position.set(hallW / 2 + 1.4, 0.56 + 5.02, 0);
+        m.add(serambiRoof);
+
+        addBox(m, 0.18, 3.1, 2.55, M.darkGreen, hallW / 2 + 0.04, 0.56 + 1.55, 0);
+        addBox(m, 0.22, 2.9, 1.12, M.woodDoor, hallW / 2 + 0.05, 0.56 + 1.48, -0.58);
+        addBox(m, 0.22, 2.9, 1.12, M.woodDoor, hallW / 2 + 0.05, 0.56 + 1.48, 0.58);
+
+        // Official Mosque Signboard on East Serambi Fascia
+        const mSignTex = TextureFactory.createSignageTexture([
+          { text: 'MASJID SMAN 1 KLATEN', y: 112, font: '900 58px Inter, sans-serif', color: '#fde047', shadow: true }
+        ], { width: 1024, height: 224, bg: '#14532d', border: '#f5c518', borderWidth: 10 });
+        const mSign = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.72, 4.4), new THREE.MeshStandardMaterial({ map: mSignTex }));
+        mSign.position.set(serambiX + 0.28, 0.56 + 4.78, 0);
+        m.add(mSign);
+
+        // 2-Tier Javanese Tajug Clay-Tile Roof + Emerald Green Dome (Kubah) & Gold Mustaka
+        const lowerTajug = createHipRoof(hallW + 1.4, hallD + 1.4, 2.65, 0.85);
+        lowerTajug.position.set(0, 0.56 + hallH + 0.24, 0);
+        m.add(lowerTajug);
+
+        addBox(m, 6.8, 1.25, 6.8, M.whiteWall, 0, 0.56 + hallH + 2.6, 0);
+        addBox(m, 7.0, 0.22, 7.0, M.darkGreen, 0, 0.56 + hallH + 3.22, 0);
+        addBox(m, 7.1, 0.08, 7.1, M.goldTrim, 0, 0.56 + hallH + 3.36, 0);
+
+        const upperTajug = createHipRoof(7.4, 7.4, 2.15, 0.6);
+        upperTajug.position.set(0, 0.56 + hallH + 3.38, 0);
+        m.add(upperTajug);
+
+        const domeMat = new THREE.MeshStandardMaterial({ color: 0x0f7640, roughness: 0.26, metalness: 0.42 });
+        const domeBase = new THREE.Mesh(new THREE.CylinderGeometry(2.35, 2.5, 0.65, 24), M.goldMetal);
+        domeBase.position.set(0, 0.56 + hallH + 5.35, 0);
+        domeBase.castShadow = true;
+        m.add(domeBase);
+
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(2.45, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.58), domeMat);
+        dome.scale.set(1, 1.18, 1);
+        dome.position.set(0, 0.56 + hallH + 5.55, 0);
+        dome.castShadow = true;
+        m.add(dome);
+
+        const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.08, 1.85, 8), M.goldMetal);
+        spire.position.set(0, 0.56 + hallH + 9.2, 0);
+        m.add(spire);
+        const orb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), M.goldMetal);
+        orb.position.set(0, 0.56 + hallH + 9.35, 0);
+        m.add(orb);
+        const crescent = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.055, 8, 18, Math.PI * 1.45), M.goldMetal);
+        crescent.position.set(0, 0.56 + hallH + 10.15, 0);
+        crescent.rotation.z = -0.35;
+        m.add(crescent);
+
+        // Slender Corner Minaret (Menara Masjid) at North-East Corner
+        const minX = hallW / 2 + 1.8, minZ = -hallD / 2 - 0.8;
+        addBox(m, 2.1, 1.2, 2.1, M.darkWallTile, minX, 0.6, minZ);
+        addBox(m, 1.65, 11.4, 1.65, M.whiteWall, minX, 6.9, minZ);
+        addBox(m, 1.75, 0.25, 1.75, M.darkGreen, minX, 12.6, minZ);
+        addBox(m, 2.35, 0.22, 2.35, M.goldTrim, minX, 12.82, minZ);
+        addBox(m, 2.35, 0.72, 0.12, M.darkGreen, minX, 13.25, minZ + 1.12);
+        addBox(m, 2.35, 0.72, 0.12, M.darkGreen, minX, 13.25, minZ - 1.12);
+        addBox(m, 0.12, 0.72, 2.35, M.darkGreen, minX + 1.12, 13.25, minZ);
+        addBox(m, 0.12, 0.72, 2.35, M.darkGreen, minX - 1.12, 13.25, minZ);
+        const minTop = new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.82, 1.45, 12), M.whiteWall);
+        minTop.position.set(minX, 13.6, minZ);
+        m.add(minTop);
+        const minDome = new THREE.Mesh(new THREE.SphereGeometry(0.86, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6), domeMat);
+        minDome.scale.set(1, 1.25, 1);
+        minDome.position.set(minX, 14.3, minZ);
+        minDome.castShadow = true;
+        m.add(minDome);
+        const minSpire = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.045, 1.1, 6), M.goldMetal);
+        minSpire.position.set(minX, 15.85, minZ);
+        m.add(minSpire);
+
+        // Tempat Wudhu (Ablution Area) along South side of Mosque
+        const wZ = hallD / 2 + 1.8;
+        addBox(m, 7.6, 0.26, 2.2, M.greenTileCorr, -0.5, 0.13, wZ, false, true);
+        addBox(m, 7.6, 1.25, 0.24, M.darkWallTile, -0.5, 0.75, wZ - 0.82);
+        addBox(m, 7.8, 0.12, 2.4, M.darkGreen, -0.5, 2.72, wZ);
+        for (let wx = -3.8; wx <= 2.8; wx += 1.3) {
+          const faucet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.24, 6), M.chrome);
+          faucet.rotation.x = Math.PI / 2;
+          faucet.position.set(wx, 0.96, wZ - 0.58);
+          m.add(faucet);
+        }
+        addBox(m, 0.18, 2.6, 0.18, M.darkGreen, -4.1, 1.42, wZ + 0.92);
+        addBox(m, 0.18, 2.6, 0.18, M.darkGreen, 3.1, 1.42, wZ + 0.92);
+
+        addCeilingLampFixture(m, hallW / 2 + 1.4, 0.56 + 4.55, -2.8);
+        addCeilingLampFixture(m, hallW / 2 + 1.4, 0.56 + 4.55, 2.8);
+        addPracticalLight(-38.0, 4.2, -49.2, 0xffe4b5, 12, 22);
+        addPracticalLight(-46.8, 4.2, -41.5, 0xffe4b5, 9, 18);
+
+        grp.add(m);
+      }
+      buildSchoolMosque();
+
+      // === 7. FAR-NORTH BOUNDARY CLASSROOM ROW ===
+      buildClassroomWing({ x: -24.5, z: -50.8, length: 18.5, floors: 2, facing: 'south' });
+      buildClassroomWing({ x: 4.5, z: -50.8, length: 27.5, floors: 2, facing: 'south', depthScale: 1.05 });
+      buildClassroomWing({ x: 33.0, z: -50.8, length: 20.5, floors: 2, facing: 'south' });
+
+      scene.add(grp);
+    }
+
+    // --- ZONA 6: FRONT-LEFT TENNIS COURT & FRONT-RIGHT BASKETBALL COURT ---
+    function buildZone6FrontSportsCourts() {
+      const grp = new THREE.Group();
+
+      // === FRONT-LEFT: 3D OUTDOOR TENNIS COURT (X = -30.0, Z = 56.8) ===
+      const tennis = new THREE.Group();
+      tennis.position.set(-30.0, 0.04, 56.8);
+
+      const tSlab = new THREE.Mesh(new THREE.BoxGeometry(27.5, 0.08, 13.8), M.tennisCourt);
+      tSlab.receiveShadow = true;
+      tennis.add(tSlab);
+
+      // Center Net Posts, Net Mesh & White Top Tape
+      for (const nz of [-5.45, 5.45]) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.15, 8), M.ironGreen);
+        post.position.set(0, 0.6, nz);
+        post.castShadow = true;
+        tennis.add(post);
+      }
+      const netMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0, wireframe: true, transparent: true, opacity: 0.55 });
+      const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(10.8, 0.94, 32, 6), netMat);
+      netPlane.rotation.y = Math.PI / 2;
+      netPlane.position.set(0, 0.54, 0);
+      tennis.add(netPlane);
+      addBox(tennis, 0.06, 0.08, 10.9, M.whiteWall, 0, 1.03, 0, false, false);
+
+      // Green Chain-Link Backstop Fences at Both Baseline Ends
+      const fenceMat = new THREE.MeshBasicMaterial({ color: 0x166534, wireframe: true, transparent: true, opacity: 0.36 });
+      for (const fx of [-13.6, 13.6]) {
+        const fPanel = new THREE.Mesh(new THREE.PlaneGeometry(13.4, 3.0, 20, 6), fenceMat);
+        fPanel.rotation.y = Math.PI / 2;
+        fPanel.position.set(fx, 1.54, 0);
+        tennis.add(fPanel);
+        for (const fz of [-6.6, -2.2, 2.2, 6.6]) {
+          const fp = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.1, 6), M.ironGreen);
+          fp.position.set(fx, 1.55, fz);
+          tennis.add(fp);
+        }
+      }
+      // Player Bench
+      addBox(tennis, 2.2, 0.08, 0.48, M.woodDoor, -3.0, 0.48, -6.5);
+      addBox(tennis, 2.2, 0.08, 0.48, M.woodDoor, 3.0, 0.48, -6.5);
+      grp.add(tennis);
+
+      // === FRONT-RIGHT: 3D OUTDOOR BASKETBALL COURT (X = +30.0, Z = 56.8) ===
+      const basket = new THREE.Group();
+      basket.position.set(30.0, 0.04, 56.8);
+
+      const bSlab = new THREE.Mesh(new THREE.BoxGeometry(27.5, 0.08, 13.8), M.basketCourt);
+      bSlab.receiveShadow = true;
+      basket.add(bSlab);
+
+      // Two Acrylic Backboard Basketball Hoop Assemblies
+      for (const side of [-1, 1]) {
+        const hg = new THREE.Group();
+        hg.position.set(side * 12.2, 0.04, 0);
+        hg.rotation.y = side === -1 ? Math.PI / 2 : -Math.PI / 2;
+
+        addBox(hg, 0.22, 3.45, 0.22, M.ironGreen, 0, 1.725, -0.95);
+        addBox(hg, 0.18, 0.18, 1.35, M.ironGreen, 0, 3.35, -0.35);
+        // Clear Acrylic Backboard with White Shooter's Square
+        addBox(hg, 1.82, 1.12, 0.06, M.clearGlass, 0, 3.45, 0.28, false, false);
+        addBox(hg, 1.86, 0.06, 0.08, M.whiteWall, 0, 4.00, 0.28, false, false);
+        addBox(hg, 1.86, 0.06, 0.08, M.whiteWall, 0, 2.90, 0.28, false, false);
+        addBox(hg, 0.06, 1.12, 0.08, M.whiteWall, -0.90, 3.45, 0.28, false, false);
+        addBox(hg, 0.06, 1.12, 0.08, M.whiteWall, 0.90, 3.45, 0.28, false, false);
+        // Orange Rim + White Wireframe Net
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.025, 8, 18), M.orangeACP);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(0, 3.05, 0.56);
+        hg.add(rim);
+        const hNet = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.23, 0.14, 0.42, 10, 3, true),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.72 })
+        );
+        hNet.position.set(0, 2.84, 0.56);
+        hg.add(hNet);
+        basket.add(hg);
+      }
+      grp.add(basket);
+
+      scene.add(grp);
+    }
+
+    // --- ZONA 7: KLATEN HORIZON CONTEXT (SURROUNDING HOUSES & TREES) ---
+    function buildZone7Horizon() {
+      const grp = new THREE.Group();
+      const houseWalls = new THREE.MeshStandardMaterial({ color: 0xd9d6ce, roughness: 0.88 });
+      const houseRoof = new THREE.MeshStandardMaterial({ color: 0xa44b2c, roughness: 0.8 });
+
+      const wallGeo = new THREE.BoxGeometry(1, 1, 1);
+      const roofGeo = new THREE.ConeGeometry(0.82, 0.72, 4);
+      roofGeo.rotateY(Math.PI / 4);
+
+      const positions = [];
+      for (let i = 0; i < 68; i++) {
+        const ang = (i / 68) * Math.PI * 2 + (i % 3) * 0.04;
+        const rad = 84 + (i % 5) * 14 + Math.sin(i * 2.7) * 8;
+        const x = Math.cos(ang) * rad;
+        const z = Math.sin(ang) * rad + 4;
+        positions.push({
+          x, z,
+          w: 7 + (i % 4) * 3.5,
+          h: 3.8 + (i % 3) * 1.4,
+          d: 6.5 + (i % 3) * 2.8,
+          rot: ang + Math.PI / 2
+        });
+      }
+
+      const instWalls = new THREE.InstancedMesh(wallGeo, houseWalls, positions.length);
+      const instRoofs = new THREE.InstancedMesh(roofGeo, houseRoof, positions.length);
+      const dummy = new THREE.Object3D();
+
+      positions.forEach((p, idx) => {
+        dummy.position.set(p.x, p.h / 2 - 0.15, p.z);
+        dummy.rotation.set(0, p.rot, 0);
+        dummy.scale.set(p.w, p.h, p.d);
+        dummy.updateMatrix();
+        instWalls.setMatrixAt(idx, dummy.matrix);
+
+        dummy.position.set(p.x, p.h + 1.45, p.z);
+        dummy.scale.set(p.w * 1.18, 4.2, p.d * 1.18);
+        dummy.updateMatrix();
+        instRoofs.setMatrixAt(idx, dummy.matrix);
+      });
+      instWalls.instanceMatrix.needsUpdate = true;
+      instRoofs.instanceMatrix.needsUpdate = true;
+      grp.add(instWalls, instRoofs);
+
+      scene.add(grp);
+    }
+
+    // =========================================================================
+    // 7. TROPICAL VEGETATION ENGINE (PROCEDURAL PALMS, BANYAN & INSTANCEDMESH)
+    // =========================================================================
+    const palmCrowns = [];
+
+    function buildTropicalVegetation() {
+      const grp = new THREE.Group();
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b5b4b, roughness: 0.92 });
+      const palmTrunkMat = new THREE.MeshStandardMaterial({ color: 0x9b958b, roughness: 0.84 });
+      const crownShaftMat = new THREE.MeshStandardMaterial({ color: 0x3b7a38, roughness: 0.58 });
+      const darkFoliage = new THREE.MeshStandardMaterial({ color: 0x265828, roughness: 0.85 });
+      const midFoliage = new THREE.MeshStandardMaterial({ color: 0x377234, roughness: 0.84 });
+      const lightFoliage = new THREE.MeshStandardMaterial({ color: 0x528e3c, roughness: 0.82 });
+
+      // 1. Two Large Shady Banyan / Ketapang Trees flanking front paving (X = ±6.8, Z = 29.5)
+      function addBanyanTree(x, z, scale = 1.0) {
+        const t = new THREE.Group();
+        t.position.set(x, 0.08, z);
+        t.scale.setScalar(scale);
+
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.72, 2.8, 10), trunkMat);
+        base.position.y = 1.4;
+        base.castShadow = true;
+        t.add(base);
+
+        // Multi-branching boughs & layered canopy clusters
+        const branches = [
+          { ang: 0.4, tilt: 0.45, len: 3.2, r: 2.3 },
+          { ang: 1.7, tilt: 0.52, len: 3.4, r: 2.5 },
+          { ang: 3.1, tilt: 0.48, len: 3.0, r: 2.2 },
+          { ang: 4.5, tilt: 0.42, len: 3.5, r: 2.4 },
+          { ang: 5.6, tilt: 0.35, len: 2.8, r: 2.0 }
+        ];
+        branches.forEach((b, idx) => {
+          const br = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.28, b.len, 7), trunkMat);
+          br.position.set(Math.cos(b.ang) * 0.9, 3.4, Math.sin(b.ang) * 0.9);
+          br.rotation.set(Math.sin(b.ang) * b.tilt, 0, -Math.cos(b.ang) * b.tilt);
+          br.castShadow = true;
+          t.add(br);
+
+          const cx = Math.cos(b.ang) * 2.1;
+          const cz = Math.sin(b.ang) * 2.1;
+          const mat = idx % 3 === 0 ? darkFoliage : idx % 3 === 1 ? midFoliage : lightFoliage;
+          const puff = new THREE.Mesh(new THREE.DodecahedronGeometry(b.r, 1), mat);
+          puff.scale.set(1.25, 0.62, 1.15);
+          puff.position.set(cx, 5.1 + (idx % 2) * 0.55, cz);
+          puff.castShadow = true;
+          puff.receiveShadow = true;
+          t.add(puff);
+        });
+        const topCap = new THREE.Mesh(new THREE.DodecahedronGeometry(2.6, 1), midFoliage);
+        topCap.scale.set(1.25, 0.65, 1.25);
+        topCap.position.set(0, 6.2, 0);
+        topCap.castShadow = true;
+        t.add(topCap);
+
+        grp.add(t);
+      }
+      addBanyanTree(-6.8, 30.2, 1.12);
+      addBanyanTree(6.8, 30.2, 1.05);
+      addBanyanTree(-18.5, 52.0, 0.92);
+      addBanyanTree(18.5, 52.0, 0.92);
+      addBanyanTree(-38.0, -39.5, 0.88);
+
+      // 2. Royal Palms (Palem Raja) along Central Paving & Main Building
+      const frondGeo = new THREE.PlaneGeometry(0.85, 3.8, 2, 6);
+      const fPos = frondGeo.attributes.position;
+      for (let i = 0; i < fPos.count; i++) {
+        const y = fPos.getY(i) + 1.9; // 0 to 3.8
+        const t = y / 3.8;
+        fPos.setY(i, y);
+        fPos.setZ(i, -t * t * 1.45); // graceful droop
+        fPos.setX(i, fPos.getX(i) * (1 - t * 0.65)); // taper tip
+      }
+      frondGeo.computeVertexNormals();
+      const frondMat = new THREE.MeshStandardMaterial({ color: 0x357433, roughness: 0.72, side: THREE.DoubleSide });
+
+      function addRoyalPalm(x, z, h = 8.2) {
+        const p = new THREE.Group();
+        p.position.set(x, 0.08, z);
+
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.30, h, 10), palmTrunkMat);
+        trunk.position.y = h / 2;
+        trunk.castShadow = true;
+        p.add(trunk);
+
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.21, 1.45, 10), crownShaftMat);
+        shaft.position.y = h + 0.65;
+        p.add(shaft);
+
+        const crown = new THREE.Group();
+        crown.position.y = h + 1.35;
+        for (let i = 0; i < 11; i++) {
+          const ang = (i / 11) * Math.PI * 2;
+          const frond = new THREE.Mesh(frondGeo, frondMat);
+          frond.rotation.y = ang;
+          frond.rotation.x = 0.55 + (i % 3) * 0.28;
+          frond.castShadow = true;
+          crown.add(frond);
+        }
+        p.add(crown);
+        palmCrowns.push({ mesh: crown, phase: x * 0.35 + z * 0.2 });
+        grp.add(p);
+      }
+
+      const palmCoords = [
+        [-4.8, 25.0, 7.6], [4.8, 25.0, 8.0],
+        [-4.8, 18.5, 8.4], [4.8, 18.5, 7.8],
+        [-4.8, 12.2, 8.8], [4.8, 12.2, 8.5],
+        [-13.6, 5.2, 9.2], [13.6, 5.2, 9.0],
+        [-22.5, 2.5, 8.4], [22.5, 2.5, 8.6],
+        [-7.5, 58.0, 7.2], [7.5, 58.0, 7.5],
+        [-3.5, -21.5, 7.2], [4.5, -24.5, 7.4]
+      ];
+      palmCoords.forEach(([px, pz, ph]) => addRoyalPalm(px, pz, ph));
+
+      // 3. Instanced Glodokan Tiang / Tall Slender Cypress Trees along Courtyard Perimeter
+      const glodokanPos = [
+        [-27.5, 34.5], [-27.5, 29.0], [-27.5, 23.5], [-27.5, 18.0], [-27.5, 12.5],
+        [27.5, 34.5], [27.5, 29.0], [27.5, 23.5], [27.5, 18.0], [27.5, 12.5],
+        [-21.0, 35.8], [-14.0, 35.8], [14.0, 35.8], [21.0, 35.8],
+        [-42.0, 48.5], [-36.0, 48.5], [36.0, 48.5], [42.0, 48.5],
+        [-42.0, 63.2], [42.0, 63.2], [-22.0, -40.5], [-8.0, -40.5]
+      ];
+      const cTrunkGeo = new THREE.CylinderGeometry(0.14, 0.22, 2.4, 6);
+      const cConeGeo = new THREE.ConeGeometry(1.15, 7.8, 8);
+      const instCTrunks = new THREE.InstancedMesh(cTrunkGeo, trunkMat, glodokanPos.length);
+      const instCCones = new THREE.InstancedMesh(cConeGeo, darkFoliage, glodokanPos.length);
+      instCCones.castShadow = true;
+      instCCones.receiveShadow = true;
+
+      const dummy = new THREE.Object3D();
+      glodokanPos.forEach(([gx, gz], idx) => {
+        const sc = 0.88 + (idx % 4) * 0.11;
+        dummy.position.set(gx, 1.2 * sc, gz);
+        dummy.rotation.set(0, idx * 0.9, 0);
+        dummy.scale.set(sc, sc, sc);
+        dummy.updateMatrix();
+        instCTrunks.setMatrixAt(idx, dummy.matrix);
+
+        dummy.position.set(gx, (2.2 + 3.6) * sc, gz);
+        dummy.updateMatrix();
+        instCCones.setMatrixAt(idx, dummy.matrix);
+      });
+      instCTrunks.instanceMatrix.needsUpdate = true;
+      instCCones.instanceMatrix.needsUpdate = true;
+      grp.add(instCTrunks, instCCones);
+
+      // 4. Instanced Ornamental Planter Bushes (Pucuk Merah, Soka Merah & Bougenville)
+      const shrubCoords = [];
+      for (let z = 12; z <= 34; z += 3.5) {
+        shrubCoords.push([-4.2, z], [4.2, z]);
+      }
+      for (let x = -22; x <= -12; x += 2.6) {
+        shrubCoords.push([x, 8.2], [-x, 8.2]);
+      }
+      for (let x = -18; x <= 18; x += 4.5) {
+        if (Math.abs(x) > 5.5) shrubCoords.push([x, 48.2]);
+      }
+      for (let z = -28; z <= -18; z += 2.8) {
+        shrubCoords.push([3.5, z], [11.5, z]);
+      }
+
+      const bushGeo = new THREE.DodecahedronGeometry(0.56, 1);
+      const instBushGreen = new THREE.InstancedMesh(bushGeo, midFoliage, shrubCoords.length);
+      const instBushTip = new THREE.InstancedMesh(
+        new THREE.DodecahedronGeometry(0.32, 0),
+        new THREE.MeshStandardMaterial({ color: 0xd9462a, roughness: 0.72 }),
+        shrubCoords.length
+      );
+      instBushGreen.castShadow = true;
+
+      shrubCoords.forEach(([sx, sz], idx) => {
+        const s = 0.82 + (idx % 3) * 0.18;
+        dummy.position.set(sx, 0.45 * s, sz);
+        dummy.rotation.set(0, idx * 1.1, 0);
+        dummy.scale.set(s * 1.1, s * 0.9, s * 1.1);
+        dummy.updateMatrix();
+        instBushGreen.setMatrixAt(idx, dummy.matrix);
+
+        dummy.position.set(sx, 0.88 * s, sz);
+        dummy.scale.set(s * 0.95, s * 0.65, s * 0.95);
+        dummy.updateMatrix();
+        instBushTip.setMatrixAt(idx, dummy.matrix);
+      });
+      instBushGreen.instanceMatrix.needsUpdate = true;
+      instBushTip.instanceMatrix.needsUpdate = true;
+      grp.add(instBushGreen, instBushTip);
+
+      scene.add(grp);
+    }
+
+    // =========================================================================
+    // 8. RAIN PARTICLE SYSTEM & PUDDLE RIPPLES (SMOOTH 60 FPS)
+    // =========================================================================
+    const RAIN_COUNT = 2600;
+    const rainPositions = new Float32Array(RAIN_COUNT * 6);
+    const rainSpeeds = new Float32Array(RAIN_COUNT);
+
+    for (let i = 0; i < RAIN_COUNT; i++) {
+      const rx = (Math.random() - 0.5) * 120;
+      const ry = Math.random() * 44;
+      const rz = (Math.random() - 0.5) * 130 + 6;
+      rainSpeeds[i] = 28 + Math.random() * 14;
+      const idx = i * 6;
+      rainPositions[idx] = rx;
+      rainPositions[idx + 1] = ry;
+      rainPositions[idx + 2] = rz;
+      rainPositions[idx + 3] = rx - 0.12;
+      rainPositions[idx + 4] = ry - 0.95;
+      rainPositions[idx + 5] = rz + 0.08;
+    }
+
+    const rainGeo = new THREE.BufferGeometry();
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+    const rainMat = new THREE.LineBasicMaterial({
+      color: 0xd0e4f7,
+      transparent: true,
+      opacity: 0.48
+    });
+    const rainSystem = new THREE.LineSegments(rainGeo, rainMat);
+    rainSystem.visible = false;
+    scene.add(rainSystem);
+
+    // Puddle Raindrop Ripple Rings on Wet Courtyard Paving
+    const ripples = [];
+    const rippleGeo = new THREE.RingGeometry(0.18, 0.24, 18);
+    rippleGeo.rotateX(-Math.PI / 2);
+    for (let i = 0; i < 24; i++) {
+      const rm = new THREE.Mesh(
+        rippleGeo,
+        new THREE.MeshBasicMaterial({ color: 0xdbeafe, transparent: true, opacity: 0.0, depthWrite: false })
+      );
+      rm.position.set((Math.random() - 0.5) * 20, 0.14, 10 + Math.random() * 24);
+      rm.visible = false;
+      scene.add(rm);
+      ripples.push({ mesh: rm, age: Math.random() });
+    }
+
+    function updateRain(dt) {
+      if (!rainSystem.visible) return;
+      const pos = rainGeo.attributes.position.array;
+      for (let i = 0; i < RAIN_COUNT; i++) {
+        const idx = i * 6;
+        const dy = rainSpeeds[i] * dt;
+        pos[idx + 1] -= dy;
+        pos[idx + 4] -= dy;
+        if (pos[idx + 1] < 0) {
+          const rx = (Math.random() - 0.5) * 120;
+          const ry = 38 + Math.random() * 10;
+          const rz = (Math.random() - 0.5) * 130 + 6;
+          pos[idx] = rx;
+          pos[idx + 1] = ry;
+          pos[idx + 2] = rz;
+          pos[idx + 3] = rx - 0.12;
+          pos[idx + 4] = ry - 0.95;
+          pos[idx + 5] = rz + 0.08;
+        }
+      }
+      rainGeo.attributes.position.needsUpdate = true;
+
+      for (const r of ripples) {
+        r.age += dt * 1.45;
+        if (r.age >= 1) {
+          r.age = 0;
+          r.mesh.position.set((Math.random() - 0.5) * 16, 0.14, 4 + Math.random() * 30);
+        }
+        const s = 0.25 + r.age * 2.1;
+        r.mesh.scale.set(s, 1, s);
+        r.mesh.material.opacity = (1 - r.age) * 0.42;
+      }
+    }
+
+    // =========================================================================
+    // 9. WEATHER, DRAMATIC LIGHTING & PROCEDURAL AMBIENT AUDIO
+    // =========================================================================
+    let currentWeather = 'morning';
+    let currentSunHour = 7.75; // 07:45 WIB dramatic raking morning light
+    let windStrength = 1.0;
+
+    function updateSunAndAtmosphere(hour, weather = currentWeather) {
+      currentSunHour = hour;
+      currentWeather = weather;
+
+      const u = sky.material.uniforms;
+      const tNorm = THREE.MathUtils.clamp((hour - 6.0) / 12.0, 0, 1);
+      // Lintasan matahari: Timur-Tenggara -> Selatan -> Barat-Barat Daya
+      const elevDeg = Math.sin(tNorm * Math.PI) * 56 + 4.5;
+      const azimDeg = 112 + tNorm * 136;
+
+      const phi = THREE.MathUtils.degToRad(90 - elevDeg);
+      const theta = THREE.MathUtils.degToRad(azimDeg);
+      const sunDir = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
+      u['sunPosition'].value.copy(sunDir);
+
+      sunLight.position.copy(sunDir).multiplyScalar(120);
+      bounceLight.position.set(-sunDir.x * 55, 24, -sunDir.z * 55);
+
+      const isRain = weather === 'rain';
+      const isEvening = weather === 'sunset' || hour >= 16.4 || hour <= 6.8;
+      const lowSun = THREE.MathUtils.clamp(1 - elevDeg / 38, 0, 1);
+
+      if (isRain) {
+        u['turbidity'].value = 14.0;
+        u['rayleigh'].value = 0.35;
+        u['mieCoefficient'].value = 0.018;
+        u['mieDirectionalG'].value = 0.72;
+        sunLight.color.setHex(0xcbd5e1);
+        sunLight.intensity = 0.95;
+        hemiLight.color.setHex(0x9aa9b8);
+        hemiLight.groundColor.setHex(0x3a4338);
+        hemiLight.intensity = 0.85;
+        bounceLight.intensity = 0.25;
+        scene.fog.color.setHex(0x9aa8b4);
+        scene.fog.density = 0.0052;
+        renderer.toneMappingExposure = 0.90;
+        cloudMat.opacity = 0.88;
+        windStrength = 2.25;
+      } else if (isEvening) {
+        u['turbidity'].value = 8.5;
+        u['rayleigh'].value = 2.6;
+        u['mieCoefficient'].value = 0.012;
+        u['mieDirectionalG'].value = 0.86;
+        sunLight.color.setHex(0xff9a4d);
+        sunLight.intensity = 2.15;
+        hemiLight.color.setHex(0xf2b48a);
+        hemiLight.groundColor.setHex(0x4a3b30);
+        hemiLight.intensity = 0.5;
+        bounceLight.color.setHex(0x7a8fbf);
+        bounceLight.intensity = 0.34;
+        scene.fog.color.setHex(0xe8b88e);
+        scene.fog.density = 0.0030;
+        renderer.toneMappingExposure = 0.80;
+        cloudMat.opacity = 0.6;
+        windStrength = 1.2;
+      } else {
+        u['turbidity'].value = 2.6 + lowSun * 3.2;
+        u['rayleigh'].value = 1.1 + lowSun * 0.7;
+        u['mieCoefficient'].value = 0.004 + lowSun * 0.004;
+        u['mieDirectionalG'].value = 0.82;
+        sunLight.color.setRGB(1.0, 0.96 - lowSun * 0.14, 0.88 - lowSun * 0.3);
+        sunLight.intensity = 2.35 + lowSun * 0.2;
+        hemiLight.color.setHex(0xaad2f5);
+        hemiLight.groundColor.setHex(0x5c6b4e);
+        hemiLight.intensity = 0.56;
+        bounceLight.color.setHex(0x9ec5e8);
+        bounceLight.intensity = 0.28;
+        scene.fog.color.setRGB(0.77 + lowSun * 0.1, 0.85, 0.93 - lowSun * 0.06);
+        scene.fog.density = 0.0026 + lowSun * 0.0006;
+        renderer.toneMappingExposure = 0.84;
+        cloudMat.opacity = 0.45;
+        windStrength = 1.0;
+      }
+
+      // Lampu praktis (malam/hujan), emisif lampu plafon, genangan basah
+      const lampsOn = isRain || isEvening;
+      for (const p of practicalLights) p.light.intensity = lampsOn ? p.maxIntensity : 0;
+      ceilingLampMat.emissiveIntensity = lampsOn ? 1.15 : 0.08;
+      for (const w of wettableMaterials) w.mat.roughness = isRain ? w.wet : w.dry;
+
+      rainSystem.visible = isRain;
+      for (const r of ripples) r.mesh.visible = isRain;
+
+      applyGradeForWeather(isRain ? 'rain' : (isEvening ? 'sunset' : 'morning'));
+      renderer.shadowMap.needsUpdate = true;
+      scheduleEnvUpdate();
+    }
+
+    // Peta lingkungan (IBL) dari langit fisik, di-debounce supaya slider tetap mulus
+    let envTimer = null;
+    function updateEnvironment() {
+      const tmp = new THREE.Scene();
+      tmp.add(sky);                       // pindahkan sementara agar PMREM hanya merender langit
+      const rt = pmremGenerator.fromScene(tmp, 0.04);
+      scene.add(sky);
+      if (envRT) envRT.dispose();
+      envRT = rt;
+      scene.environment = envRT.texture;
+      scene.environmentIntensity = currentWeather === 'rain' ? 0.45 : 0.62;
+    }
+    function scheduleEnvUpdate() {
+      clearTimeout(envTimer);
+      envTimer = setTimeout(updateEnvironment, 220);
+    }
+
+    // =========================================================================
+    // 10. COLOR GRADING SINEMATIK (teal-orange split toning, vignette, grain, letterbox)
+    // =========================================================================
+    const GRADES = {
+      morning: { shadow: [0.90, 1.02, 1.08], high: [1.07, 1.00, 0.90], sat: 1.14, contrast: 1.10, vignette: 0.34, grain: 0.035, ca: 0.0010 },
+      sunset:  { shadow: [0.86, 0.96, 1.12], high: [1.12, 0.97, 0.80], sat: 1.20, contrast: 1.14, vignette: 0.42, grain: 0.04,  ca: 0.0012 },
+      rain:    { shadow: [0.88, 1.03, 1.06], high: [0.97, 1.01, 1.04], sat: 0.92, contrast: 1.08, vignette: 0.46, grain: 0.05,  ca: 0.0011 }
+    };
+    const GRADE_STYLES = {
+      cine:    { amount: 1.0, satMul: 1.0, warm: 1.0 },
+      natural: { amount: 0.0, satMul: 1.0, warm: 1.0 },
+      vintage: { amount: 1.0, satMul: 0.82, warm: 1.35 }
+    };
+    let gradeStyle = 'cine';
+    let letterbox = false;
+    let gradeWeather = 'morning';
+
+    const CinematicGradeShader = {
+      uniforms: {
+        tDiffuse: { value: null },
+        uTime: { value: 0 },
+        uAmount: { value: 1.0 },
+        uSat: { value: 1.1 },
+        uContrast: { value: 1.1 },
+        uVignette: { value: 0.35 },
+        uGrain: { value: 0.035 },
+        uCA: { value: 0.0016 },
+        uAspect: { value: 1.6 },
+        uLetter: { value: 0.0 },
+        uShadow: { value: new THREE.Vector3(0.9, 1.02, 1.08) },
+        uHigh: { value: new THREE.Vector3(1.07, 1.0, 0.9) }
+      },
+      vertexShader: /* glsl */`
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+      `,
+      fragmentShader: /* glsl */`
+        uniform sampler2D tDiffuse;
+        uniform float uTime, uAmount, uSat, uContrast, uVignette, uGrain, uCA, uAspect, uLetter;
+        uniform vec3 uShadow, uHigh;
+        varying vec2 vUv;
+        float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+        float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+        void main() {
+          vec2 d = vUv - 0.5;
+          float r2 = dot(d, d);
+          vec3 src = texture2D(tDiffuse, vUv).rgb;
+          vec3 col;
+          col.r = texture2D(tDiffuse, vUv + d * uCA * r2 * 3.0).r;
+          col.g = src.g;
+          col.b = texture2D(tDiffuse, vUv - d * uCA * r2 * 3.0).b;
+
+          // kurva-S kontras di sekitar abu-abu tengah
+          col = (col - 0.5) * uContrast + 0.5;
+          float l = luma(col);
+          float sh = 1.0 - smoothstep(0.0, 0.55, l);
+          float hi = smoothstep(0.42, 1.0, l);
+          col *= mix(vec3(1.0), uShadow, sh);
+          col *= mix(vec3(1.0), uHigh, hi);
+          float l2 = luma(col);
+          col = mix(vec3(l2), col, uSat);
+
+          // vignette elips
+          float vig = smoothstep(0.30, 0.98, length(d * vec2(min(uAspect, 1.8) * 0.8, 1.0) * 1.35));
+          col *= 1.0 - uVignette * vig;
+
+          // film grain
+          float g = hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 61.7) - 0.5;
+          col += g * uGrain * (1.0 - l2 * 0.6);
+
+          col = mix(src, col, uAmount);
+
+          // letterbox 2.39:1
+          if (uLetter > 0.5) {
+            float visH = clamp(uAspect / 2.39, 0.0, 1.0);
+            if (abs(d.y) > visH * 0.5) col = vec3(0.0);
+          }
+          gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+        }
+      `
+    };
+
+    // Composer: render -> bloom (halus) -> OutputPass (tone mapping ACES) -> grade
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2)),
+      0.20, 0.55, 0.92
+    );
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+    const gradePass = new ShaderPass(CinematicGradeShader);
+    composer.addPass(gradePass);
+
+    function applyGradeForWeather(w) {
+      gradeWeather = w;
+      refreshGrade();
+    }
+    function refreshGrade() {
+      const g = GRADES[gradeWeather];
+      const s = GRADE_STYLES[gradeStyle];
+      const un = gradePass.uniforms;
+      un.uAmount.value = s.amount;
+      un.uSat.value = g.sat * s.satMul;
+      un.uContrast.value = g.contrast;
+      un.uVignette.value = g.vignette;
+      un.uGrain.value = g.grain;
+      un.uCA.value = g.ca;
+      un.uShadow.value.set(...g.shadow);
+      un.uHigh.value.set(g.high[0] * s.warm, g.high[1], g.high[2] / s.warm);
+      un.uLetter.value = letterbox ? 1 : 0;
+      bloomPass.strength = gradeWeather === 'morning' ? 0.18 : 0.34;
+      bloomPass.threshold = gradeWeather === 'morning' ? 0.93 : 0.86;
+    }
+
+    // =========================================================================
+    // 11. AUDIO LINGKUNGAN PROSEDURAL (burung, angin, hujan) — tanpa file eksternal
+    // =========================================================================
+    const AudioEngine = {
+      ctx: null, master: null, windGain: null, rainGain: null, birdTimer: null, on: false,
+      start() {
+        if (!this.ctx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return false;
+          this.ctx = new AC();
+          this.master = this.ctx.createGain();
+          this.master.gain.value = 0.5;
+          this.master.connect(this.ctx.destination);
+          const len = this.ctx.sampleRate * 2;
+          const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+          const mk = (type, freq, q) => {
+            const src = this.ctx.createBufferSource();
+            src.buffer = buf; src.loop = true;
+            const f = this.ctx.createBiquadFilter();
+            f.type = type; f.frequency.value = freq; f.Q.value = q;
+            const g = this.ctx.createGain(); g.gain.value = 0;
+            src.connect(f); f.connect(g); g.connect(this.master); src.start();
+            return g;
+          };
+          this.windGain = mk('lowpass', 420, 0.6);
+          this.rainGain = mk('highpass', 2400, 0.4);
+        }
+        this.ctx.resume();
+        this.on = true;
+        this.refresh();
+        const chirp = () => {
+          if (!this.on) return;
+          if (currentWeather !== 'rain' && currentWeather !== 'sunset') {
+            const t0 = this.ctx.currentTime;
+            const base = 2400 + Math.random() * 1800;
+            const n = 2 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < n; i++) {
+              const o = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              o.type = 'sine';
+              const t = t0 + i * 0.12;
+              o.frequency.setValueAtTime(base, t);
+              o.frequency.exponentialRampToValueAtTime(base * 1.35, t + 0.07);
+              g.gain.setValueAtTime(0, t);
+              g.gain.linearRampToValueAtTime(0.05, t + 0.02);
+              g.gain.exponentialRampToValueAtTime(0.0008, t + 0.1);
+              o.connect(g); g.connect(this.master);
+              o.start(t); o.stop(t + 0.12);
+            }
+          }
+          this.birdTimer = setTimeout(chirp, 900 + Math.random() * 2600);
+        };
+        chirp();
+        return true;
+      },
+      stop() {
+        this.on = false;
+        clearTimeout(this.birdTimer);
+        if (this.windGain) this.windGain.gain.value = 0;
+        if (this.rainGain) this.rainGain.gain.value = 0;
+        if (this.ctx) this.ctx.suspend();
+      },
+      refresh() {
+        if (!this.ctx || !this.on) return;
+        this.windGain.gain.value = 0.05 * windStrength;
+        this.rainGain.gain.value = currentWeather === 'rain' ? 0.12 : 0;
+      }
+    };
+
+    // =========================================================================
+    // 12. SISTEM KAMERA: DRONE (Orbit), WALK 1.7m, AUTO-TOUR, TELEPORT PRESET
+    // =========================================================================
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.maxPolarAngle = Math.PI * 0.495;
+    controls.minDistance = 2;
+    controls.maxDistance = 260;
+    controls.target.set(0, 2, 8);
+    camera.position.set(64, 40, 96);
+    controls.update();
+
+    const PRESETS = {
+      drone:    { p: [64, 40, 96],    t: [0, 2, 8] },
+      topdown:  { p: [0, 150, 18],    t: [0, 0, 0] },
+      gate:     { p: [11, 3.2, 84],   t: [0, 2.2, 58] },
+      acp:      { p: [-13, 2.3, 68],  t: [0, 4.5, 47.3] },
+      main:     { p: [9, 2.4, 24],    t: [0, 8, -6] },
+      uksbk:    { p: [-10, 2.2, 8],   t: [-34, 2, 26] },
+      masjid:   { p: [-12, 21, -20], t: [-47, 3, -49] },
+      corridor: { p: [36, 34, -2],    t: [12, 0, -22] },
+      tennis:   { p: [-52, 5, 78],    t: [-30, 0, 56.8] },
+      basket:   { p: [52, 5, 78],     t: [30, 0, 56.8] }
+    };
+
+    let camMode = 'drone';
+    let transition = null;
+    const walk = { yaw: Math.PI, pitch: 0, keys: {}, joy: { x: 0, y: 0 }, bob: 0, dragging: false };
+    const WALK_BOUNDS = { minX: -78, maxX: 78, minZ: -66, maxZ: 96 };
+
+    function flyTo(p, t, dur = 2.0) {
+      transition = {
+        p0: camera.position.clone(), t0: controls.target.clone(),
+        p1: new THREE.Vector3(...p), t1: new THREE.Vector3(...t), t: 0, dur
+      };
+    }
+
+    function faceTowards(from, to) {
+      const dx = to[0] - from[0], dz = to[2] - from[2];
+      walk.yaw = Math.atan2(-dx, -dz);
+      walk.pitch = 0;
+    }
+
+    function gotoPreset(name) {
+      const pr = PRESETS[name];
+      if (!pr) return;
+      if (camMode === 'walk') {
+        camera.position.set(pr.p[0], 1.7, pr.p[2]);
+        faceTowards(pr.p, pr.t);
+        showToast('Teleport: ' + name);
+        return;
+      }
+      if (camMode === 'tour') setCamMode('drone');
+      flyTo(pr.p, pr.t, 2.2);
+      showToast('Teleport: ' + name);
+    }
+
+    // Auto-tour: spline kamera sinematik
+    const TOUR_KEYS = [
+      { p: [70, 38, 100],  t: [0, 3, 20] },
+      { p: [26, 8, 88],    t: [0, 3, 58] },
+      { p: [-9, 2.6, 70],  t: [0, 5, 47] },
+      { p: [3, 2.2, 36],   t: [0, 7, -6] },
+      { p: [-6, 2.0, 14],  t: [-34, 2.5, 26] },
+      { p: [-28, 3.0, -8], t: [-47, 3.5, -48] },
+      { p: [-6, 9, -30],   t: [10, 2, -20] },
+      { p: [38, 12, 10],   t: [0, 4, 10] },
+      { p: [70, 38, 100],  t: [0, 3, 20] }
+    ];
+    const tourPos = new THREE.CatmullRomCurve3(TOUR_KEYS.map(k => new THREE.Vector3(...k.p)), false, 'catmullrom', 0.5);
+    const tourTgt = new THREE.CatmullRomCurve3(TOUR_KEYS.map(k => new THREE.Vector3(...k.t)), false, 'catmullrom', 0.5);
+    let tourU = 0;
+    const TOUR_DURATION = 95;
+
+    function setCamMode(mode) {
+      const prev = camMode;
+      camMode = mode;
+      transition = null;
+      document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('active', b.dataset.cam === mode));
+      const walkHint = document.getElementById('walk-hint');
+      const joy = document.getElementById('joystick-zone');
+      walkHint.style.display = mode === 'walk' ? 'block' : 'none';
+      joy.style.display = (mode === 'walk' && window.matchMedia('(pointer: coarse)').matches) ? 'block' : 'none';
+      controls.enabled = mode === 'drone';
+
+      if (mode === 'walk') {
+        const s = PRESETS.gate.p;
+        camera.position.set(0, 1.7, 90);
+        faceTowards([camera.position.x, 0, camera.position.z], [0, 0, 20]);
+        showToast('Mode Walk 1.7m — WASD / panah, drag untuk menoleh');
+      } else if (mode === 'tour') {
+        tourU = 0;
+        letterbox = true; refreshGrade();
+        showToast('Auto-Tour sinematik (bar 2.39:1)');
+      } else {
+        if (prev === 'tour') { letterbox = false; refreshGrade(); }
+        if (prev === 'walk' || prev === 'tour') {
+          const f = new THREE.Vector3(); camera.getWorldDirection(f);
+          controls.target.copy(camera.position).addScaledVector(f, 18).setY(2);
+          const d = PRESETS.drone;
+          flyTo(d.p, d.t, 2.4);
+        }
+        showToast('Mode Drone — drag untuk orbit, scroll untuk zoom');
+      }
+    }
+
+    // Input Walk
+    window.addEventListener('keydown', e => { walk.keys[e.code] = true; });
+    window.addEventListener('keyup', e => { walk.keys[e.code] = false; });
+    renderer.domElement.addEventListener('pointerdown', e => { if (camMode === 'walk') { walk.dragging = true; renderer.domElement.setPointerCapture(e.pointerId); } });
+    renderer.domElement.addEventListener('pointerup', e => { walk.dragging = false; });
+    renderer.domElement.addEventListener('pointermove', e => {
+      if (camMode !== 'walk' || !walk.dragging) return;
+      walk.yaw -= e.movementX * 0.0035;
+      walk.pitch = THREE.MathUtils.clamp(walk.pitch - e.movementY * 0.0035, -1.2, 1.2);
+    });
+
+    // Joystick sentuh
+    (function setupJoystick() {
+      const zone = document.getElementById('joystick-zone');
+      const knob = document.getElementById('joystick-knob');
+      let active = false;
+      const move = e => {
+        const r = zone.getBoundingClientRect();
+        let dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+        let dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+        const m = Math.hypot(dx, dy);
+        if (m > 1) { dx /= m; dy /= m; }
+        walk.joy.x = dx; walk.joy.y = dy;
+        knob.style.transform = `translate(${dx * 34}px, ${dy * 34}px)`;
+      };
+      zone.addEventListener('pointerdown', e => { active = true; zone.setPointerCapture(e.pointerId); move(e); });
+      zone.addEventListener('pointermove', e => { if (active) move(e); });
+      const end = () => { active = false; walk.joy.x = 0; walk.joy.y = 0; knob.style.transform = ''; };
+      zone.addEventListener('pointerup', end);
+      zone.addEventListener('pointercancel', end);
+    })();
+
+    function updateWalk(dt) {
+      const k = walk.keys;
+      let f = (k['KeyW'] || k['ArrowUp'] ? 1 : 0) - (k['KeyS'] || k['ArrowDown'] ? 1 : 0) - walk.joy.y;
+      let s = (k['KeyD'] || k['ArrowRight'] ? 1 : 0) - (k['KeyA'] || k['ArrowLeft'] ? 1 : 0) + walk.joy.x;
+      const speed = (k['ShiftLeft'] || k['ShiftRight'] ? 7.0 : 3.2);
+      const sinY = Math.sin(walk.yaw), cosY = Math.cos(walk.yaw);
+      const mx = (-sinY * f + cosY * s) * speed * dt;
+      const mz = (-cosY * f - sinY * s) * speed * dt;
+      camera.position.x = THREE.MathUtils.clamp(camera.position.x + mx, WALK_BOUNDS.minX, WALK_BOUNDS.maxX);
+      camera.position.z = THREE.MathUtils.clamp(camera.position.z + mz, WALK_BOUNDS.minZ, WALK_BOUNDS.maxZ);
+      const moving = Math.abs(f) + Math.abs(s) > 0.05;
+      walk.bob += moving ? dt * speed * 2.1 : 0;
+      camera.position.y = 1.7 + (moving ? Math.sin(walk.bob) * 0.035 : 0);
+      camera.rotation.set(walk.pitch, walk.yaw, 0, 'YXZ');
+    }
+
+    function updateTour(dt) {
+      tourU = (tourU + dt / TOUR_DURATION) % 1;
+      const u = tourU * 0.999;
+      camera.position.copy(tourPos.getPoint(u));
+      const t = tourTgt.getPoint(u);
+      camera.lookAt(t);
+    }
+
+    function updateTransition(dt) {
+      if (!transition) return;
+      transition.t += dt / transition.dur;
+      const k = Math.min(1, transition.t);
+      const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      camera.position.lerpVectors(transition.p0, transition.p1, e);
+      controls.target.lerpVectors(transition.t0, transition.t1, e);
+      if (k >= 1) transition = null;
+    }
+
+    // =========================================================================
+    // 13. WIRING UI
+    // =========================================================================
+    document.querySelectorAll('[data-cam]').forEach(b => b.addEventListener('click', () => setCamMode(b.dataset.cam)));
+    document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => gotoPreset(b.dataset.preset)));
+
+    const sunSlider = document.getElementById('sun-slider');
+    const sunLabel = document.getElementById('sun-time-label');
+    function fmtHour(h) {
+      const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+      return String(hh).padStart(2, '0') + ':' + String(mm === 60 ? 59 : mm).padStart(2, '0') + ' WIB';
+    }
+    sunSlider.addEventListener('input', () => {
+      const h = parseFloat(sunSlider.value);
+      sunLabel.textContent = fmtHour(h);
+      const w = currentWeather === 'rain' ? 'rain' : (h >= 16.4 ? 'sunset' : 'morning');
+      document.querySelectorAll('[data-weather]').forEach(b => b.classList.toggle('active', b.dataset.weather === w));
+      updateSunAndAtmosphere(h, w);
+      AudioEngine.refresh();
+    });
+
+    document.querySelectorAll('[data-weather]').forEach(b => b.addEventListener('click', () => {
+      const w = b.dataset.weather;
+      const h = w === 'morning' ? 7.75 : (w === 'sunset' ? 17.0 : 11.0);
+      sunSlider.value = h;
+      sunLabel.textContent = fmtHour(h);
+      document.querySelectorAll('[data-weather]').forEach(x => x.classList.toggle('active', x === b));
+      updateSunAndAtmosphere(h, w);
+      AudioEngine.refresh();
+    }));
+
+    document.querySelectorAll('[data-grade]').forEach(b => b.addEventListener('click', () => {
+      gradeStyle = b.dataset.grade;
+      document.querySelectorAll('[data-grade]').forEach(x => x.classList.toggle('active', x === b));
+      refreshGrade();
+      showToast('Color grade: ' + b.textContent.trim());
+    }));
+    const letterBtn = document.getElementById('btn-letterbox');
+    letterBtn.addEventListener('click', () => {
+      letterbox = !letterbox;
+      letterBtn.classList.toggle('active', letterbox);
+      refreshGrade();
+    });
+
+    let quality = 'high';
+    function applyQuality(q) {
+      quality = q;
+      document.querySelectorAll('[data-quality]').forEach(b => b.classList.toggle('active', b.dataset.quality === q));
+      const dpr = window.devicePixelRatio || 1;
+      const pr = q === 'medium' ? 1 : (q === 'high' ? Math.min(dpr, 1.5) : Math.min(dpr, 2));
+      renderer.setPixelRatio(pr);
+      composer.setPixelRatio(pr);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      const size = q === 'medium' ? 1024 : (q === 'high' ? 2048 : 4096);
+      if (sunLight.shadow.mapSize.x !== size) {
+        sunLight.shadow.mapSize.set(size, size);
+        if (sunLight.shadow.map) { sunLight.shadow.map.dispose(); sunLight.shadow.map = null; }
+      }
+      bloomPass.enabled = q !== 'medium';
+      renderer.shadowMap.needsUpdate = true;
+    }
+    document.querySelectorAll('[data-quality]').forEach(b => b.addEventListener('click', () => applyQuality(b.dataset.quality)));
+
+    document.getElementById('btn-toggle-ui').addEventListener('click', e => {
+      const panel = document.getElementById('control-panel');
+      const hidden = panel.classList.toggle('collapsed');
+      e.currentTarget.classList.toggle('active', !hidden);
+    });
+    const audioBtn = document.getElementById('btn-audio');
+    audioBtn.addEventListener('click', () => {
+      if (AudioEngine.on) { AudioEngine.stop(); audioBtn.textContent = 'Audio: Off'; audioBtn.classList.remove('active'); }
+      else if (AudioEngine.start()) { audioBtn.textContent = 'Audio: On'; audioBtn.classList.add('active'); }
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      gradePass.uniforms.uAspect.value = camera.aspect;
+    });
+
+    // =========================================================================
+    // 14. ANIMATION LOOP
+    // =========================================================================
+    const clock = new THREE.Clock();
+    let fpsFrames = 0, fpsTime = 0;
+    const fpsEl = document.getElementById('fps-display');
+    const LED_TEXT = 'Anda memasuki Kawasan Pakaian Sopan  •  Selamat Datang di SMA Negeri 1 Klaten — Sekolah Inspirasi  •  ';
+
+    function animateFlag(t) {
+      if (!flagMesh) return;
+      const pos = flagMesh.geometry.attributes.position;
+      const arr = pos.array;
+      const W = 2.8;
+      for (let i = 0; i < pos.count; i++) {
+        const bx = flagBasePos[i * 3], by = flagBasePos[i * 3 + 1];
+        const k = Math.max(0, bx / W);
+        arr[i * 3 + 2] = Math.sin(bx * 2.6 - t * 4.2 + by * 0.9) * 0.16 * windStrength * k;
+        arr[i * 3 + 1] = by + Math.sin(bx * 1.7 - t * 3.0) * 0.035 * windStrength * k;
+      }
+      pos.needsUpdate = true;
+      flagMesh.geometry.computeVertexNormals();
+      flagMesh.rotation.y = Math.sin(t * 0.35) * 0.18;
+    }
+
+    function drawLed(dt) {
+      if (!ledCanvasCtx) return;
+      const c = ledCanvasCtx;
+      c.fillStyle = '#031a0c';
+      c.fillRect(0, 0, 1024, 128);
+      c.font = '600 70px "Playfair Display", Georgia, serif';
+      c.fillStyle = '#6dffa8';
+      c.textBaseline = 'middle';
+      const w = c.measureText(LED_TEXT).width;
+      ledScrollX = (ledScrollX + dt * 150) % w;
+      c.fillText(LED_TEXT, -ledScrollX, 66);
+      c.fillText(LED_TEXT, -ledScrollX + w, 66);
+      ledTexture.needsUpdate = true;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.1);
+      const t = clock.elapsedTime;
+
+      updateTransition(dt);
+      if (camMode === 'walk') updateWalk(dt);
+      else if (camMode === 'tour') updateTour(dt);
+      else controls.update();
+
+      animateFlag(t);
+      drawLed(dt);
+      for (const p of palmCrowns) {
+        p.mesh.rotation.z = Math.sin(t * 0.9 + p.phase) * 0.035 * windStrength;
+        p.mesh.rotation.x = Math.cos(t * 0.7 + p.phase) * 0.025 * windStrength;
+      }
+      cloudPlane.position.x = Math.sin(t * 0.01) * 40;
+      cloudPlane.rotation.z += dt * 0.002;
+      updateRain(dt);
+
+      gradePass.uniforms.uTime.value = t;
+      composer.render(dt);
+
+      fpsFrames++; fpsTime += dt;
+      if (fpsTime >= 0.5) {
+        fpsEl.textContent = Math.round(fpsFrames / fpsTime) + ' FPS';
+        fpsFrames = 0; fpsTime = 0;
+      }
+    }
+
+    // =========================================================================
+    // 15. INISIALISASI BERTAHAP (dengan penanganan error yang terlihat)
+    // =========================================================================
+    const tick = () => new Promise(r => setTimeout(r, 20));
+    async function init() {
+      try {
+        setProgress(8, 'Menyusun material PBR...');
+        await tick(); initMaterials();
+        setProgress(18, 'Zona 1: gerbang, kolam patung & pos satpam...');
+        await tick(); buildZone1FrontAndBase();
+        setProgress(30, 'Zona 2: fasad ACP & gedung selatan (Kelas X)...');
+        await tick(); buildZone2ModernACPAndSouthWing();
+        setProgress(42, 'Zona 3: halaman paving & tiang bendera...');
+        await tick(); buildZone3CourtyardAndFlagpole();
+        setProgress(54, 'Zona 4: gedung utama dua lantai...');
+        await tick(); buildZone4MainBuilding();
+        setProgress(68, 'Zona 5: sayap U (kelas X, UKS, BK, koperasi) & masjid...');
+        await tick(); buildZone5WingsAndMosque();
+        setProgress(78, 'Zona 6: lapangan tenis & basket...');
+        await tick(); buildZone6FrontSportsCourts();
+        setProgress(86, 'Zona 7: lingkungan Klaten & vegetasi...');
+        await tick(); buildZone7Horizon(); buildTropicalVegetation();
+        setProgress(94, 'Atmosfer, IBL & color grading...');
+        await tick();
+        updateSunAndAtmosphere(7.75, 'morning');
+        updateEnvironment();
+        applyQuality('high');
+        gradePass.uniforms.uAspect.value = camera.aspect;
+        refreshGrade();
+        setProgress(100, 'Siap!');
+        await tick();
+        loadingScreen.classList.add('hidden');
+        window.__SMANSA_READY__ = true;
+        animate();
+        showToast('Selamat datang di SMA Negeri 1 Klaten');
+      } catch (err) {
+        console.error(err);
+        progressText.textContent = 'Terjadi error: ' + (err && err.message ? err.message : err);
+        progressText.style.color = '#fca5a5';
+        window.__SMANSA_ERROR__ = String(err && err.stack || err);
+      }
+    }
+    init();
+  </script>
+</body>
+</html>
