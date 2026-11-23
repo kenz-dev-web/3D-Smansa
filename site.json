@@ -1,0 +1,10 @@
+{
+  "description": "I can’t determine the app’s purpose from setup and deployment instructions alone; they don’t describe its user-facing functionality.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
