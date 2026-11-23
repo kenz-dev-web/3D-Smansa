@@ -4324,5 +4324,36 @@
     }
     init();
   </script>
+  <script>
+  (function () {
+    // 1. Blokir klik kanan
+    document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+
+    // 2. Blokir shortcut keyboard (F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S)
+    document.addEventListener('keydown', function (e) {
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && ['U', 'S'].includes(e.key.toUpperCase()))
+      ) {
+        e.preventDefault();
+      }
+    });
+
+    // 3. Perangkap debugger & hapus tampilan jika Inspect Element dibuka paksa lewat menu browser
+    setInterval(function () {
+      const startTime = performance.now();
+      debugger;
+      if (performance.now() - startTime > 100) {
+        document.body.innerHTML =
+          "<div style='display:flex;justify-content:center;align-items:center;height:100vh;background:#0f172a;color:#38bdf8;font-family:sans-serif;text-align:center;padding:20px;'>" +
+          "<h2>Akses Ditolak: Inspect Element Terdeteksi.</h2>" +
+          "</div>";
+      }
+    }, 1000);
+  })();
+</script>
 </body>
 </html>
