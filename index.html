@@ -1543,24 +1543,23 @@ function spaced(x, text, cx, cy, spacing, align = 'center') {
   for (const ch of text) { x.fillText(ch, px, cy); px += x.measureText(ch).width + spacing; }
   return w;
 }
-function texFacade() {      // fasad ACP putih: logo ASLI + tulisan seperti foto
-  const W = 3328, H = 934, c = cnv(W, H), x = c.getContext('2d');
+function texFacade() {      // fasad ACP putih 13 x 7.3 m: logo ASLI + tulisan, posisi mengikuti foto
+  const W = 1664, H = 934, c = cnv(W, H), x = c.getContext('2d');
   x.fillStyle = '#f3f3f0'; x.fillRect(0, 0, W, H);
   const tw = 208, th = 117;                       // panel 1.6 x 0.9 m
   for (let j = 0; j * th < H; j++) for (let i = 0; i * tw < W; i++) {
-    const g = x.createLinearGradient(i * tw, j * th, (i + 1) * tw, (j + 1) * th); g.addColorStop(0, '#fafaf7'); g.addColorStop(1, '#e6e7e3');
+    const g = x.createLinearGradient(i * tw, j * th, (i + 1) * tw, (j + 1) * th); g.addColorStop(0, '#f6f6f3'); g.addColorStop(1, '#dcdedb');
     x.fillStyle = g; roundRect(x, i * tw + 3, j * th + 3, tw - 6, th - 6, 5); x.fill();
   }
-  x.strokeStyle = 'rgba(70,74,80,.28)'; x.lineWidth = 3; for (let i = 0; i <= W / tw; i++) { x.beginPath(); x.moveTo(i * tw, 0); x.lineTo(i * tw, H); x.stroke(); } for (let j = 0; j <= H / th; j++) { x.beginPath(); x.moveTo(0, j * th); x.lineTo(W, j * th); x.stroke(); }
-  // logo ASLI (gambar yang diberikan) — sisi kiri
-  const lg = logoEl(); if (lg && lg.complete && lg.naturalWidth) { const lh = 330, lw = lh * lg.naturalWidth / lg.naturalHeight; x.save(); x.shadowColor = 'rgba(0,0,0,.25)'; x.shadowBlur = 14; x.shadowOffsetY = 5; x.drawImage(lg, 150, 150, lw, lh); x.restore(); }
-  x.textBaseline = 'middle';
-  x.font = '800 150px Manrope, Arial Black, sans-serif'; x.fillStyle = '#e4611f'; x.save(); x.transform(1, -0.05, 0, 1, 0, 0);
-  spaced(x, 'SMA NEGERI 1 KLATEN', 640, 230, 14, 'left');
-  x.font = '800 112px Manrope, Arial Black, sans-serif'; x.fillStyle = '#31a24c'; spaced(x, 'SEKOLAH INSPIRASI', 640, 405, 22, 'left'); x.restore();
-  x.font = 'italic 500 78px Fraunces, Georgia, serif'; x.fillStyle = '#6e7480';
-  [['Membangun', 640], ['Prestasi', 1180], ['Menebar', 1720], ['Inspirasi', 2260]].forEach(([t, px]) => { x.save(); x.transform(1, -0.04, 0, 1, 0, 0); x.fillText(t, px, 570 + (px / 3328) * 30); x.restore(); });
-  grain(x, W, H, 8); return c;
+  x.strokeStyle = 'rgba(70,74,80,.30)'; x.lineWidth = 3; for (let i = 0; i <= W / tw; i++) { x.beginPath(); x.moveTo(i * tw, 0); x.lineTo(i * tw, H); x.stroke(); } for (let j = 0; j <= H / th; j++) { x.beginPath(); x.moveTo(0, j * th); x.lineTo(W, j * th); x.stroke(); }
+  const lg = logoEl(); if (lg && lg.complete && lg.naturalWidth) { const lh = 200, lw = lh * lg.naturalWidth / lg.naturalHeight; x.save(); x.shadowColor = 'rgba(0,0,0,.25)'; x.shadowBlur = 10; x.shadowOffsetY = 4; x.drawImage(lg, 84, 70, lw, lh); x.restore(); }
+  const fit = (t, px, py, wTarget) => { const w0 = [...t].reduce((a, ch) => a + x.measureText(ch).width, 0), gap = (wTarget - w0) / (t.length - 1); spaced(x, t, px, py, gap, 'left'); };
+  x.textBaseline = 'middle'; x.lineJoin = 'round';
+  x.font = '800 92px Manrope, Arial Black, sans-serif'; x.fillStyle = '#c8362a'; fit('SMA NEGERI 1 KLATEN', 372, 62, 1200);
+  x.font = '800 64px Manrope, Arial Black, sans-serif'; x.fillStyle = '#2ea24a'; fit('SEKOLAH INSPIRASI', 503, 132, 920);
+  x.font = 'italic 500 50px Fraunces, Georgia, serif'; x.textAlign = 'center'; x.lineWidth = 6; x.strokeStyle = '#ffffff'; x.fillStyle = '#6a6f7a';
+  [['Membangun', 551], ['Prestasi', 845], ['Menebar', 1132], ['Inspirasi', 1405]].forEach(([t, px]) => { x.strokeText(t, px, 200); x.fillText(t, px, 200); });
+  x.textAlign = 'left'; grain(x, W, H, 8); return c;
 }
 function texFrontWall() {   // tembok depan: huruf merah "SMA NEGERI 1 KLATEN" + logo asli
   const W = 2600, H = 200, c = cnv(W, H), x = c.getContext('2d');
@@ -1751,7 +1750,7 @@ function buildFences() {
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), fm); sign.position.set((x0 + x1) / 2, .55 + ph / 2 + .12, fz + .2); sign.receiveShadow = true; campus.add(sign);
   // sisi: barat, utara, timur
   const B2 = new Batch('wall2');
-  wallRun(B2, SCHB.x0, SCHB.z1 - .1, SCHB.x0, SCHB.z0, { h: 2.3, pillars: true, pillarGap: 6 });
+  wallRun(B2, SCHB.x0, SCHB.z1 - .1, SCHB.x0, -63, { h: 2.3, pillars: true, pillarGap: 6 });
   wallRun(B2, SCHB.x0, SCHB.z0, SCHB.x1, SCHB.z0, { h: 2.3, pillars: true, pillarGap: 6 });
   const ex = SCHB.x1, sg = 5.2; let z = SCHB.z1 - .1;
   const gates = GATE_SIDE.slice().sort((a, b) => b - a);
@@ -1764,7 +1763,6 @@ function buildFences() {
   // 3 gerbang samping (geser)
   GATE_SIDE.forEach((g, i) => slideGate(ex, g, sg, 'Gerbang samping ' + (i + 1)));
   // pintu kecil barat ke masjid
-  pedGate(SCHB.x0, -74, 1.4, 'Pintu pagar masjid', false);
 }
 
 
@@ -1812,7 +1810,7 @@ function buildBlocks() {
 
 /* ───────── gerbang ACP (fasad putih + busur jingga + bingkai kuning) ───────── */
 function buildACP() {
-  const B = new Batch('acp'), zf = 56.2, th = .45, WALLH = 7.3, TOPH = .95, x0 = -17, x1 = 9, OPX0 = -7.2, OPX1 = -0.8, OPH = 4.5;
+  const B = new Batch('acp'), zf = 56.2, th = .45, WALLH = 7.3, TOPH = .95, x0 = -10.5, x1 = 2.5, OPX0 = -6.9, OPX1 = -1.1, OPH = 2.85, FH = 3.35;
   // rongga lorong penghubung antara dua sayap selatan: lantai, plafon, atap
   const pz0 = 42.8, pz1 = 56.0;
   B.box(M.paving, 8.4, .02, pz1 - pz0, AX, CY.pave + .02, (pz0 + pz1) / 2);
@@ -1840,21 +1838,23 @@ function buildACP() {
   };
   part(x0, OPX0, 0, WALLH); part(OPX1, x1, 0, WALLH); part(OPX0, OPX1, OPH, WALLH);
   const B2 = new Batch('acp2');
-  // bingkai kuning (portal)
-  const fx0 = OPX0 - 1.0, fx1 = OPX1 + 1.0, fz = zf + th / 2 + .85;
-  B2.box(M.yellowACP, 1.0, OPH + 1.1, 1.7, fx0 + .5, (OPH + 1.1) / 2, fz, { solid: true }); B2.box(M.yellowACP, 1.0, OPH + 1.1, 1.7, fx1 - .5, (OPH + 1.1) / 2, fz, { solid: true });
-  B2.box(M.yellowACP, fx1 - fx0, 1.0, 1.7, (fx0 + fx1) / 2, OPH + .6, fz, { solid: true });
-  B2.box(M.cream, fx1 - fx0 - 2.0, .05, 1.6, (fx0 + fx1) / 2, OPH - .04, fz);   // langit-langit krem di dalam bingkai
-  for (const px of [fx0 - 1.9, fx1 + 1.9, fx1 + 3.1]) B2.box(M.orangeACP2, .38, 3.7, .38, px, 1.85, zf + th / 2 + .9, { solid: true });   // tiang teras jingga
-  B2.box(M.white, fx1 - fx0 - 2.0, .6, .6, AX, OPH - .3, zf + .3);     // list putih di dalam
-  // busur jingga: kaki kiri curam + balok panjang menurun ke kanan (seperti foto)
+  // bingkai kuning (portal) — proporsi dari foto: lebar luar 5.9 m, tinggi ~4 m, tebal tiang ~.8 m
+  const fx0 = AX - 2.95, fx1 = AX + 2.95, fz = zf + th / 2 + .62, FT = .55, FLg = .8;
+  B2.box(M.yellowACP, FLg, FH, 1.2, fx0 + FLg / 2, FH / 2, fz, { solid: true }); B2.box(M.yellowACP, FLg, FH, 1.2, fx1 - FLg / 2, FH / 2, fz, { solid: true });
+  B2.box(M.yellowACP, fx1 - fx0, FT, 1.2, AX, FH - FT / 2, fz, { solid: true });
+  B2.box(M.cream, fx1 - fx0 - 2 * FLg, .05, 1.1, AX, FH - FT - .02, fz);
+  // kanopi putih di belakang bingkai (terlihat di bawah palang kuning) + tiang teras jingga tipis
+  B2.box(M.white, 9.1, .7, 1.0, AX, 2.45, zf + th / 2 + .5);
+  for (const px of [fx0 - .7, fx1 + .6, fx1 + 1.4]) B2.box(M.orangeACP2, .34, 3.0, .34, px, 1.5, zf + th / 2 + .9, { solid: true });
+  // busur jingga "atap rumah": kaki kiri curam, puncak ±32% dari kiri, sisi kanan landai ke pilar tebal
   const zA = zf + th / 2 + .6, Pm = (x, y) => new THREE.Vector3(x, y, zA);
-  const seg = (a, b, w, alt0 = 0) => { const L = a.distanceTo(b), n = Math.max(2, Math.round(L / 1.9)); for (let i = 0; i < n; i++) { const p0 = a.clone().lerp(b, i / n + .0035), p1 = a.clone().lerp(b, (i + 1) / n - .0035); B2.beam((i + alt0) % 2 ? M.orangeACP2 : M.orangeACP, p0, p1, 1.5, w); } };
-  const apex = Pm(-8.2, 6.5), footL = Pm(-15.6, .0), endR = Pm(7.2, 3.5);
-  seg(footL, apex.clone().add(new THREE.Vector3(.5, .45, 0)), 1.85); seg(apex.clone().add(new THREE.Vector3(-.4, .3, 0)), endR, 1.9, 1);
-  B2.box(M.orangeACP, 1.95, 4.1, 1.5, 7.3, 2.05, zA, { solid: true });
+  const seg = (a, b, w, alt0 = 0) => { const L = a.distanceTo(b), n = Math.max(2, Math.round(L / 1.25)); for (let i = 0; i < n; i++) { const p0 = a.clone().lerp(b, i / n + .002), p1 = a.clone().lerp(b, (i + 1) / n - .002); B2.beam((i + alt0) % 2 ? M.orangeACP2 : M.orangeACP, p0, p1, 1.4, w); } };
+  const AT = 1.15, apex = Pm(AX - 2.9, 4.75), footL = Pm(AX - 5.6, -.5), endR = Pm(AX + 5.0, 2.3);
+  seg(footL, apex, AT); seg(apex, endR, AT, 1);
+  B2.box(M.orangeACP, AT * 1.02, AT * 1.02, 1.4, apex.x, apex.y, zA);                     // sambungan puncak
+  B2.box(M.orangeACP, 1.55, 3.05, 1.4, AX + 5.1, 1.5, zA, { solid: true });               // pilar kanan tebal
   // 2 lampu sorot di atas
-  for (const px of [-12.5, -9.8]) { B2.cyl(M.chrome, .04, .04, .8, 6, px, WALLH + TOPH + .5, zf + .4); B2.box(M.black, .3, .14, .3, px, WALLH + TOPH + .95, zf + .6); }
+  for (const px of [AX - 2.8, AX + 1.5]) { B2.cyl(M.chrome, .04, .04, .8, 6, px, WALLH + TOPH + .5, zf + .4); B2.box(M.black, .3, .14, .3, px, WALLH + TOPH + .95, zf + .6); }
   B2.finalize(campus);
   buildACPDoors(zf);
 }
@@ -2079,7 +2079,7 @@ function hipRoofInto(B, x0, x1, z0, z1, y0, pitch, mat = M.roof, tile = 2) {
   return hg;
 }
 function buildMosque() {
-  const B = new Batch('masjid'), X0 = -84, X1 = -66, Z0 = -85, Z1 = -67, cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2, WH = 6.6, T = .4;
+  const B = new Batch('masjid'), X0 = -61, X1 = -43, Z0 = -85, Z1 = -67, cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2, WH = 6.6, T = .4;
   const mCream = M.mcream || (M.mcream = wmat(texPlaster(), 3, 0xf1e8d2, { roughness: .9, bump: .6 })), mTeal = M.mteal || (M.mteal = std(0x1c7c7a, { roughness: .45, metalness: .1 }));
   slab(B, M.concrete, X0 - 3, X1 + 6.5, Z0 - 3, Z1 + 3, .45, .6);                    // lantai halaman masjid
   slab(B, M.granite, X0 - .6, X1 + 5, Z0 - .6, Z1 + .6, .5, .2, { solid: false });
@@ -2285,8 +2285,56 @@ function truckGeo() {
   const p = [bx(1.9, 1.7, 2.3, 2.5, 1.45, 0, 0xffffff, 1), bx(.1, .8, 2.0, 3.46, 1.85, 0, 0x27323c, 0), bx(5.6, 2.5, 2.4, -1.0, 2.1, 0, 0xd9d3c3, 0), bx(5.8, .2, 2.4, -1.0, .75, 0, 0x2a2e38, 0), bx(.1, .22, 1.7, 3.5, .8, 0, 0xfff2cf, 2), bx(.1, .2, 1.8, -3.9, .85, 0, 0xff3322, 2), bx(5.6, .08, 2.5, -1.0, 3.38, 0, 0xffffff, 1)];
   for (const sx of [2.5, -.3, -1.9]) for (const sz of [1.0, -1.0]) p.push(wheel(.5, .3, sx, .5, sz)); return merge(p);
 }
+const PT = { value: 0 };
+function personMat() {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .72, metalness: 0 });
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uT = PT;
+    sh.vertexShader = `attribute float paint; attribute float aPart; attribute vec4 iAnim; attribute float iStyle; uniform float uT; varying float vPaint;
+vec2 rz(vec2 v, float a){ float c = cos(a), s = sin(a); return vec2(c * v.x - s * v.y, s * v.x + c * v.y); }
+` + sh.vertexShader.replace('vColor.xyz *= instanceColor.xyz;', 'vColor.xyz *= mix(vec3(1.0), instanceColor.xyz, step(0.5, paint));\n vPaint = paint;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+{
+  float ph = iAnim.x, amp = iAnim.y, look = iAnim.z, gest = iAnim.w, sw = sin(ph);
+  vec3 p = transformed; float side = p.z > 0.0 ? 1.0 : -1.0; int part = int(aPart + 0.5);
+  if (part == 6 && iStyle < 0.5) p = vec3(0.0);
+  if (part == 4 && iStyle > 0.5) p = vec3(0.0);
+  if (part == 5 && iStyle < 0.5) p = vec3(0.0);
+  if (part == 1 || part == 6) { vec2 q = rz(p.xy - vec2(0.0, 0.82), sw * side * 0.52 * amp + (part == 1 ? 0.0 : 0.0)); p.xy = q + vec2(0.0, 0.82); if (sw * side > 0.0) p.y += 0.0; }
+  if (part == 2) {
+    float a = -sw * side * 0.42 * amp + sin(uT * 1.3 + ph * 0.37) * 0.035;
+    if (side > 0.0 && gest > 0.5) a = 1.05 + 0.5 * sin(uT * 5.0 + ph);
+    vec2 q = rz(p.xy - vec2(0.0, 1.37), a); p.xy = q + vec2(0.0, 1.37);
+    if (side > 0.0 && gest > 0.5) { p.z += 0.0; }
+  }
+  if (part >= 3 && part <= 5) {
+    float yaw = look * sin(uT * 0.9 + ph * 0.7) * 0.95; float c = cos(yaw), s = sin(yaw);
+    p.xz = vec2(c * p.x + s * p.z, -s * p.x + c * p.z);
+    p.y -= 1.47; p.xy = rz(p.xy, sin(uT * 0.6 + ph) * 0.05 * (1.0 - amp * 0.5)); p.y += 1.47;
+  }
+  p.y += abs(cos(ph)) * 0.035 * amp;
+  p.xz = vec2(cos(sw * 0.08 * amp) * p.x + sin(sw * 0.08 * amp) * p.z, -sin(sw * 0.08 * amp) * p.x + cos(sw * 0.08 * amp) * p.z) * (part <= 0 ? 1.0 : 1.0);
+  transformed = p;
+}`);
+    sh.fragmentShader = 'varying float vPaint;\n' + sh.fragmentShader;
+  };
+  m.customProgramCacheKey = () => 'person'; return m;
+}
+function Part2(geo, col, paint, part, tr) { const g = Part(geo, col, paint, tr), n = g.attributes.position.count; g.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(n).fill(part), 1)); return g; }
+const bx2 = (w, h, d, x, y, z, col, part, paint = 0) => Part2(new THREE.BoxGeometry(w, h, d), col, paint, part, new THREE.Matrix4().makeTranslation(x, y, z));
+const sp2 = (r, x, y, z, col, part, sy = 1, sx = 1, sz = 1) => Part2(new THREE.SphereGeometry(r, 10, 8), col, 0, part, new THREE.Matrix4().makeTranslation(x, y, z).multiply(new THREE.Matrix4().makeScale(sx, sy, sz)));
 function personGeo() {
-  const p = [bx(.15, .78, .17, 0, .39, .1, 0x5c6168, 0), bx(.15, .78, .17, 0, .39, -.1, 0x5c6168, 0), bx(.2, .6, .42, 0, 1.08, 0, 0xffffff, 1), bx(.12, .55, .13, 0, 1.0, .29, 0xffffff, 1), bx(.12, .55, .13, 0, 1.0, -.29, 0xffffff, 1), Part(new THREE.SphereGeometry(.12, 8, 6), 0xc99a74, 0, new THREE.Matrix4().makeTranslation(0, 1.55, 0)), Part(new THREE.SphereGeometry(.125, 8, 6), 0x1b1b1f, 0, new THREE.Matrix4().makeTranslation(0, 1.6, -.01).scale(new THREE.Vector3(1, .75, 1)))];
+  const p = [], PANT = 0x7d8aa0, SKIN = 0xc9976b, DARK = 0x1b1b1f;
+  for (const z of [.1, -.1]) {
+    p.push(bx2(.15, .78, .16, 0, .43, z, PANT, 1), bx2(.26, .08, .17, .05, .04, z, DARK, 1));            // celana panjang & sepatu
+    p.push(bx2(.27, .64, .2, 0, .55, z * 1.05, 0x8d9bb2, 6));                                              // rok (siswi) ikut melangkah
+  }
+  p.push(bx2(.22, .6, .42, 0, 1.1, 0, 0xffffff, 0, 1), bx2(.23, .06, .43, 0, .81, 0, 0x3a3f4a, 0));       // badan & ikat pinggang
+  for (const z of [.29, -.29]) p.push(bx2(.13, .32, .14, 0, 1.22, z, 0xffffff, 2, 1), bx2(.1, .28, .11, 0, .93, z, SKIN, 2), sp2(.055, 0, .77, z, SKIN, 2));
+  p.push(bx2(.07, .08, .1, 0, 1.45, 0, SKIN, 3));                                                          // leher
+  p.push(sp2(.12, 0, 1.56, 0, SKIN, 3, 1.08), bx2(.035, .045, .04, .125, 1.54, 0, 0xb07f58, 3));          // kepala + hidung
+  p.push(sp2(.128, -.01, 1.6, 0, 0x16161a, 4, .78), bx2(.08, .05, .26, .06, 1.64, 0, 0x16161a, 4));       // rambut
+  p.push(sp2(.15, -.005, 1.575, 0, 0xffffff, 5, 1.0, 1.02, 1.0), bx2(.2, .34, .36, -.04, 1.34, 0, 0xffffff, 5));   // hijab
   return merge(p);
 }
 
@@ -2370,12 +2418,12 @@ function updateTraffic(dt) {
 /* ───────── siswa & pejalan kaki ───────── */
 const CROWD = { list: [], mesh: null, shadow: null, apel: false };
 function buildCrowd() {
-  const N = 230, geo = personGeo(), mat = vehMat(); CROWD.mesh = new THREE.InstancedMesh(geo, mat, N); CROWD.mesh.frustumCulled = false; CROWD.mesh.castShadow = false; CROWD.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3); campus.add(CROWD.mesh);
+  const N = 230, geo = personGeo(), mat = personMat(); CROWD.anim = new Float32Array(N * 4); CROWD.style = new Float32Array(N); geo.setAttribute('iAnim', new THREE.InstancedBufferAttribute(CROWD.anim, 4)); geo.setAttribute('iStyle', new THREE.InstancedBufferAttribute(CROWD.style, 1)); CROWD.mesh = new THREE.InstancedMesh(geo, mat, N); CROWD.mesh.frustumCulled = false; CROWD.mesh.castShadow = false; CROWD.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3); campus.add(CROWD.mesh);
   const shirts = [0xffffff, 0xffffff, 0xffffff, 0xf5efe0, 0xe8e8ef, 0xffd9a0, 0xd9ecff]; const c = new THREE.Color();
   let i = 0;
   for (let row = 0; row < 14; row++) for (let col = 0; col < 14; col++) if (i < 196) CROWD.list.push({ i: i++, slot: [AX - 6.5 + col * .98, 12.5 + row * 1.12], x: AX + R(-6, 6), z: R(12, 38), tx: 0, tz: 0, wait: R(0, 3), sp: R(1.0, 1.5), s: R(.88, 1.06), yaw: 0, bob: R(0, 6) });
   while (i < N) CROWD.list.push({ i: i++, slot: null, x: R(-50, 55), z: 81.6 + R(-.6, .6), tx: R(-50, 55), tz: 81.6 + R(-.7, .7), wait: 0, sp: R(1.1, 1.5), s: R(.9, 1.05), yaw: 0, bob: R(0, 6), walker: true, lane: i % 2 });
-  for (const p of CROWD.list) { c.set(shirts[Math.floor(R() * shirts.length)]); CROWD.mesh.setColorAt(p.i, c); p.tx = p.x; p.tz = p.z; }
+  for (const p of CROWD.list) { c.set(shirts[Math.floor(R() * shirts.length)]); CROWD.mesh.setColorAt(p.i, c); p.tx = p.x; p.tz = p.z; CROWD.style[p.i] = R() < .5 ? 1 : 0; p.ph = R(0, 6.28); p.amp = 0; p.gest = 0; p.look = .3; CROWD.anim[p.i * 4] = p.ph; }
   CROWD.mesh.instanceColor.needsUpdate = true;
 }
 const _po = new THREE.Object3D();
@@ -2393,11 +2441,15 @@ function updateCrowd(dt, hour, night) {
     if (p.slot && apel) { tx = p.slot[0]; tz = p.slot[1]; } else { if (p.wait > 0) { p.wait -= dt; } else if (Math.hypot(p.tx - p.x, p.tz - p.z) < .4) { pickWander(p); p.wait = p.walker ? 0 : R(1, 6); } tx = p.tx; tz = p.tz; }
     const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz); let moving = false;
     if (d > .15 && !(p.wait > 0 && !(p.slot && apel))) { const sp = p.sp * (p.slot && apel ? 1.6 : 1) * dt; p.x += dx / d * Math.min(sp, d); p.z += dz / d * Math.min(sp, d); p.yaw = Math.atan2(-dz, dx) * 1; moving = true; } else if (p.slot && apel) p.yaw = -Math.PI / 2 * -1 + Math.PI;   // menghadap utara (tiang bendera)
-    p.bob += dt * (moving ? 9 : .6);
+    const spd = moving ? p.sp * (p.slot && apel ? 1.6 : 1) : 0; p.ph += dt * (moving ? 4.8 * Math.max(.6, spd) : 0); p.amp += ((moving ? Math.min(1, spd / 1.3) : 0) - p.amp) * Math.min(1, dt * 6);
+    if (!moving && p.wait > 0 && p.gestT === undefined) { p.gestT = R(2, 6); p.gest = R() < .4 ? 1 : 0; } if (moving) { p.gestT = undefined; p.gest = 0; }
+    if (p.gestT !== undefined) { p.gestT -= dt; if (p.gestT < 0) { p.gest = p.gest ? 0 : (R() < .5 ? 1 : 0); p.gestT = R(2, 6); } }
+    p.look += ((moving ? .12 : (p.slot && apel ? .1 : .55)) - p.look) * Math.min(1, dt * 2);
+    const ai = p.i * 4; CROWD.anim[ai] = p.ph; CROWD.anim[ai + 1] = p.amp; CROWD.anim[ai + 2] = p.look; CROWD.anim[ai + 3] = p.gest;
     const gy = (p.x > -54 && p.x < 56 && p.z < 79.5) ? CY.pave : CY.side;
-    _po.position.set(p.x, gy + (moving ? Math.abs(Math.sin(p.bob)) * .045 : 0), p.z); _po.rotation.set(0, p.slot && apel && !moving ? Math.PI : -Math.atan2(dz, dx) + Math.PI / 2 * 0, 0); if (!moving && !(p.slot && apel)) _po.rotation.y = p.yaw; _po.scale.setScalar(p.s); _po.updateMatrix(); CROWD.mesh.setMatrixAt(p.i, _po.matrix);
+    _po.position.set(p.x, gy, p.z); _po.rotation.set(0, p.slot && apel && !moving ? Math.PI : -Math.atan2(dz, dx) + Math.PI / 2 * 0, 0); if (!moving && !(p.slot && apel)) _po.rotation.y = p.yaw; _po.scale.setScalar(p.s); _po.updateMatrix(); CROWD.mesh.setMatrixAt(p.i, _po.matrix);
   }
-  CROWD.mesh.instanceMatrix.needsUpdate = true;
+  CROWD.mesh.instanceMatrix.needsUpdate = true; CROWD.mesh.geometry.attributes.iAnim.needsUpdate = true; PT.value += dt;
 }
 
 /* ───────── bendera + motor parkir ───────── */
@@ -2542,7 +2594,7 @@ const PRESETS = {
   overview: { p: [118, 92, 178], t: [-2, 0, 8] }, sat: { p: [-2, 190, 22], t: [-2, 0, -4] }, street: { p: [14, 8.5, 91], t: [64, 3, 89] },
   gate: { p: [-4, 7.5, 96.5], t: [-4, 2.6, 66] }, acp: { p: [-1, 3.6, 73], t: [-5.5, 4.4, 56] }, court: { p: [-4, 6, 46], t: [-4, 6, 8] },
   main: { p: [-4, 1.9, 5], t: [-4, 1.7, -42] }, utama: { p: [-4, 2.3, 19], t: [-4, 4.4, -4] }, portal: { p: [-9.5, 1.65, 63], t: [-5.5, 3.8, 56] }, bendera: { p: [-2.9, 3.2, 53.5], t: [-3.4, 2.6, 70] }, uks: { p: [-8, 7.5, 44], t: [-46, 1.8, 26] }, back: { p: [-0.5, 2.3, -8], t: [-0.5, 2.0, -45] },
-  masjid: { p: [-40, 17, -52], t: [-74, 6, -77] }, side: { p: [92, 20, 24], t: [56, 2, 20] }
+  masjid: { p: [-22, 16, -50], t: [-52, 5, -77] }, side: { p: [92, 20, 24], t: [56, 2, 20] }
 };
 function setMode(m) {
   CAM.mode = m; CAM.tween = null;
@@ -2756,7 +2808,7 @@ function frame(now) {
   fpsAcc += dt; fpsN++; if (fpsAcc > .6) { const e = document.getElementById('hud-fps'); if (e) e.textContent = Math.round(fpsN / fpsAcc) + ' FPS'; fpsAcc = 0; fpsN = 0; }
 }
 
-window.__dbg = { movers, CAM };
+window.__dbg = { movers, CAM, scene, camera, renderer, get controls() { return controls; }, CROWD, ENV };
 window.SMANSA = {
   async enter(cb) {
     const prog = (p, t) => cb && cb(p, t);
@@ -2778,7 +2830,7 @@ function texDirt() {
 }
 
 </script>
-  <script>
+   <script>
   (function () {
     // 1. Blokir klik kanan
     document.addEventListener('contextmenu', function (e) {
